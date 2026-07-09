@@ -10,12 +10,31 @@ import {
 
 export const WEEKLY_HOUR_LIMIT = 40;
 
-export function getWeeklyHourWarning(totalHours) {
-  if (totalHours <= WEEKLY_HOUR_LIMIT) {
+export function getWeeklyHourWarning(totalHours, settings = {}) {
+  const limit = Number(settings.maxWeeklyHours ?? WEEKLY_HOUR_LIMIT);
+
+  if (settings.weeklyMaxHoursWarningEnabled === false || totalHours <= limit) {
     return null;
   }
 
-  return `Over ${WEEKLY_HOUR_LIMIT} hours`;
+  return `Over ${limit} hours`;
+}
+
+export function findWeeklyMaxHourWarnings(workers, weeklyTotals, settings = {}) {
+  const limit = Number(settings.maxWeeklyHours ?? WEEKLY_HOUR_LIMIT);
+
+  if (settings.weeklyMaxHoursWarningEnabled === false) {
+    return [];
+  }
+
+  return workers
+    .map((worker) => ({
+      workerId: worker.id,
+      workerName: worker.name,
+      hours: weeklyTotals[worker.id] ?? 0,
+      limit,
+    }))
+    .filter((warning) => warning.hours > limit);
 }
 
 export function validateShift(shift, schedule) {

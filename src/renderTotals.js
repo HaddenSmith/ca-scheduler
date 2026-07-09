@@ -38,7 +38,7 @@ export function renderWeekSummary(container, schedule, dailyTotals, weeklyTotals
   for (const worker of schedule.workers) {
     const row = document.createElement("tr");
     const weeklyHours = weeklyTotals[worker.id] ?? 0;
-    const warning = getWeeklyHourWarning(weeklyHours);
+    const warning = getWeeklyHourWarning(weeklyHours, schedule.settings);
 
     row.append(createCell("th", worker.name));
 

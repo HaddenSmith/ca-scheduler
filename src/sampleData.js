@@ -74,6 +74,7 @@ export const sampleSchedule = {
   },
   weekStartDate: "2026-07-04",
   workers,
+  deskCoverage: [],
   onCallAssignments: [
     { date: "2026-07-04", primaryWorkerId: "atticus", backupWorkerId: "emma-w", notes: "" },
     { date: "2026-07-05", primaryWorkerId: "kaylee", backupWorkerId: "sarah", notes: "" },

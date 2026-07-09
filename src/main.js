@@ -9,14 +9,19 @@ import {
 } from "./dateUtils.js";
 import { renderScheduleBoard } from "./renderSchedule.js";
 import { renderWeekSummary } from "./renderTotals.js";
+import { openDeskCoverageEditor } from "./deskCoverageEditor.js";
 import {
+  addDeskCoverage,
   addShift,
   addShifts,
   copyShift,
+  createDefaultDeskCoverage,
   createDefaultShift,
+  deleteDeskCoverage,
   deleteShift,
   getOnCallAssignment,
   shiftHasPhoneCoverage,
+  updateDeskCoverage,
   updateShift,
   updateOnCallAssignment,
 } from "./scheduleState.js";
@@ -32,6 +37,7 @@ import {
   findLongConsecutiveWorkWarnings,
   findPhoneCoverageOverlaps,
   findShiftOverlaps,
+  findWeeklyMaxHourWarnings,
 } from "./validation.js";
 import { openWorkerManager } from "./workerManager.js";
 
@@ -157,13 +163,16 @@ function renderApp() {
     button.setAttribute("aria-pressed", String(button.dataset.viewMode === state.viewMode));
   }
 
-  renderScheduleWarnings(scheduleWarnings, schedule);
+  renderScheduleWarnings(scheduleWarnings, schedule, weeklyTotals);
   renderScheduleBoard(scheduleBoard, schedule, dailyTotals, {
+    onAddDeskCoverage: handleAddDeskCoverage,
     onAddShift: handleAddShift,
     onChangeShift: handleChangeShift,
     onDuplicateShift: handleDuplicateShift,
+    onEditDeskCoverage: handleEditDeskCoverage,
     onEditOnCall: handleEditOnCall,
     onEditShift: handleEditShift,
+    onViewDeskCoverage: handleViewDeskCoverage,
     onViewShift: handleViewShift,
     readOnly: state.readOnly,
     viewMode: state.viewMode,
@@ -201,7 +210,29 @@ async function handleAddShift(defaults = {}) {
 
   if (result.action === "save") {
     const repeatedShifts = buildRepeatedShiftCopies(schedule, result.shift, result.repeat);
-    schedule = addShifts(addShift(schedule, result.shift), repeatedShifts);
+    const copiedShifts = buildWorkerCopies(result.shift, result.copy);
+    schedule = addShifts(addShift(schedule, result.shift), [
+      ...repeatedShifts,
+      ...copiedShifts,
+    ]);
+    renderApp();
+  }
+}
+
+async function handleAddDeskCoverage(defaults = {}) {
+  if (state.readOnly) {
+    return;
+  }
+
+  const draftCoverage = createDefaultDeskCoverage(schedule, defaults);
+  const result = await openDeskCoverageEditor({
+    mode: "create",
+    schedule,
+    coverage: draftCoverage,
+  });
+
+  if (result.action === "save") {
+    schedule = addDeskCoverage(schedule, result.coverage);
     renderApp();
   }
 }
@@ -227,7 +258,10 @@ async function handleEditShift(shiftId) {
     schedule = updateShift(schedule, result.shift);
     schedule = addShifts(
       schedule,
-      buildRepeatedShiftCopies(schedule, result.shift, result.repeat),
+      [
+        ...buildRepeatedShiftCopies(schedule, result.shift, result.repeat),
+        ...buildWorkerCopies(result.shift, result.copy),
+      ],
     );
     renderApp();
   }
@@ -243,6 +277,34 @@ async function handleEditShift(shiftId) {
   }
 }
 
+async function handleEditDeskCoverage(coverageId) {
+  if (state.readOnly) {
+    return;
+  }
+
+  const coverage = (schedule.deskCoverage ?? []).find((item) => item.id === coverageId);
+
+  if (!coverage) {
+    return;
+  }
+
+  const result = await openDeskCoverageEditor({
+    mode: "edit",
+    schedule,
+    coverage,
+  });
+
+  if (result.action === "save") {
+    schedule = updateDeskCoverage(schedule, result.coverage);
+    renderApp();
+  }
+
+  if (result.action === "delete") {
+    schedule = deleteDeskCoverage(schedule, result.coverageId);
+    renderApp();
+  }
+}
+
 async function handleViewShift(shiftId) {
   const shift = schedule.shifts.find((item) => item.id === shiftId);
 
@@ -251,6 +313,20 @@ async function handleViewShift(shiftId) {
   }
 
   await openShiftDetails({ schedule, shift });
+}
+
+async function handleViewDeskCoverage(coverageId) {
+  const coverage = (schedule.deskCoverage ?? []).find((item) => item.id === coverageId);
+
+  if (!coverage) {
+    return;
+  }
+
+  await openDeskCoverageEditor({
+    mode: "view",
+    schedule,
+    coverage,
+  });
 }
 
 function handleChangeShift({ shiftId, changes }) {
@@ -373,7 +449,7 @@ function isViewerModeFromUrl() {
   return ["view", "viewer", "readonly", "read-only"].includes(mode);
 }
 
-function renderScheduleWarnings(container, currentSchedule) {
+function renderScheduleWarnings(container, currentSchedule, weeklyTotals = {}) {
   const weekDates = buildWeekDates(currentSchedule.weekStartDate);
   const visibleDates = new Set(weekDates.map((date) => date.isoDate));
   const nextDateAfterWeek = addDays(weekDates.at(-1).isoDate, 1);
@@ -394,13 +470,19 @@ function renderScheduleWarnings(container, currentSchedule) {
     scheduleWarningShifts,
     currentSchedule.settings,
   );
+  const weeklyMaxWarnings = findWeeklyMaxHourWarnings(
+    currentSchedule.workers,
+    weeklyTotals,
+    currentSchedule.settings,
+  );
 
   container.replaceChildren();
   container.hidden =
     overlaps.length === 0 &&
     phoneOverlaps.length === 0 &&
     longWorkWarnings.length === 0 &&
-    lateMorningWarnings.length === 0;
+    lateMorningWarnings.length === 0 &&
+    weeklyMaxWarnings.length === 0;
 
   if (container.hidden) {
     return;
@@ -422,7 +504,17 @@ function renderScheduleWarnings(container, currentSchedule) {
     });
     const warning = document.createElement("p");
 
-    warning.textContent = `${overlaps.length} shift overlap warning${overlaps.length === 1 ? "" : "s"}: ${visibleOverlaps.join("; ")}${overlaps.length > visibleOverlaps.length ? "; more..." : ""}.`;
+    warning.textContent = `${overlaps.length} shift overlap warning${overlaps.length === 1 ? "" : "s"}: ${visibleOverlaps.join("; ")}${overlaps.length > visibleOverlaps.length ? "; more" : ""}.`;
+    container.append(warning);
+  }
+
+  if (weeklyMaxWarnings.length > 0) {
+    const visibleWeeklyWarnings = weeklyMaxWarnings.slice(0, 3).map((warning) => {
+      return `${warning.workerName} is scheduled for ${warning.hours.toFixed(2)} hours this week, which exceeds the ${warning.limit} hour limit`;
+    });
+    const warning = document.createElement("p");
+
+    warning.textContent = `${weeklyMaxWarnings.length} weekly hours warning${weeklyMaxWarnings.length === 1 ? "" : "s"}: ${visibleWeeklyWarnings.join("; ")}${weeklyMaxWarnings.length > visibleWeeklyWarnings.length ? "; more" : ""}.`;
     container.append(warning);
   }
 
@@ -437,7 +529,7 @@ function renderScheduleWarnings(container, currentSchedule) {
     });
     const warning = document.createElement("p");
 
-    warning.textContent = `${phoneOverlaps.length} phone coverage warning${phoneOverlaps.length === 1 ? "" : "s"}: ${visiblePhoneOverlaps.join("; ")}${phoneOverlaps.length > visiblePhoneOverlaps.length ? "; more..." : ""}.`;
+    warning.textContent = `${phoneOverlaps.length} phone coverage warning${phoneOverlaps.length === 1 ? "" : "s"}: ${visiblePhoneOverlaps.join("; ")}${phoneOverlaps.length > visiblePhoneOverlaps.length ? "; more" : ""}.`;
     container.append(warning);
   }
 
@@ -447,7 +539,7 @@ function renderScheduleWarnings(container, currentSchedule) {
     });
     const warning = document.createElement("p");
 
-    warning.textContent = `${longWorkWarnings.length} long consecutive work warning${longWorkWarnings.length === 1 ? "" : "s"}: ${visibleLongWarnings.join("; ")}${longWorkWarnings.length > visibleLongWarnings.length ? "; more..." : ""}.`;
+    warning.textContent = `${longWorkWarnings.length} long consecutive work warning${longWorkWarnings.length === 1 ? "" : "s"}: ${visibleLongWarnings.join("; ")}${longWorkWarnings.length > visibleLongWarnings.length ? "; more" : ""}.`;
     container.append(warning);
   }
 
@@ -457,7 +549,7 @@ function renderScheduleWarnings(container, currentSchedule) {
     });
     const warning = document.createElement("p");
 
-    warning.textContent = `${lateMorningWarnings.length} late-night/morning warning${lateMorningWarnings.length === 1 ? "" : "s"}: ${visibleLateWarnings.join("; ")}${lateMorningWarnings.length > visibleLateWarnings.length ? "; more..." : ""}.`;
+    warning.textContent = `${lateMorningWarnings.length} late-night/morning warning${lateMorningWarnings.length === 1 ? "" : "s"}: ${visibleLateWarnings.join("; ")}${lateMorningWarnings.length > visibleLateWarnings.length ? "; more" : ""}.`;
     container.append(warning);
   }
 }

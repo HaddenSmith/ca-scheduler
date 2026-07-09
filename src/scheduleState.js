@@ -94,6 +94,48 @@ export function deleteShift(schedule, shiftId) {
   };
 }
 
+export function createDefaultDeskCoverage(schedule, defaults = {}) {
+  return normalizeDeskCoverage({
+    id: createDeskCoverageId(),
+    date: defaults.date ?? schedule.weekStartDate,
+    startTime: defaults.startTime ?? "09:00",
+    endTime: defaults.endTime ?? "09:30",
+    label: defaults.label ?? "D",
+    notes: defaults.notes ?? "",
+    color: defaults.color ?? "#a6a6a6",
+  }, schedule.settings);
+}
+
+export function addDeskCoverage(schedule, coverage) {
+  return {
+    ...schedule,
+    deskCoverage: [
+      ...(schedule.deskCoverage ?? []),
+      normalizeDeskCoverage(coverage, schedule.settings),
+    ],
+  };
+}
+
+export function updateDeskCoverage(schedule, coverage) {
+  return {
+    ...schedule,
+    deskCoverage: (schedule.deskCoverage ?? []).map((item) => {
+      if (item.id !== coverage.id) {
+        return item;
+      }
+
+      return normalizeDeskCoverage(coverage, schedule.settings);
+    }),
+  };
+}
+
+export function deleteDeskCoverage(schedule, coverageId) {
+  return {
+    ...schedule,
+    deskCoverage: (schedule.deskCoverage ?? []).filter((item) => item.id !== coverageId),
+  };
+}
+
 export function normalizeShift(shift, settings = {}) {
   const shiftType = inferShiftType(shift);
   const preset = getShiftTypePreset(shiftType, settings);
@@ -130,6 +172,21 @@ export function normalizeShift(shift, settings = {}) {
       : Boolean(shift.countsTowardHours ?? preset.countsTowardHours),
     alsoOnCall: Boolean(shift.alsoOnCall),
     alsoBackupOnCall: Boolean(shift.alsoBackupOnCall),
+  };
+}
+
+export function normalizeDeskCoverage(coverage, settings = {}) {
+  const startTime = coverage.startTime ?? coverage.start ?? settings.startTime ?? "07:00";
+  const endTime = coverage.endTime ?? coverage.end ?? settings.endTime ?? "01:00";
+
+  return {
+    id: coverage.id || createDeskCoverageId(),
+    date: coverage.date,
+    startTime,
+    endTime,
+    label: coverage.label?.trim() || "D",
+    notes: coverage.notes?.trim() ?? "",
+    color: coverage.color || "#a6a6a6",
   };
 }
 
@@ -351,6 +408,14 @@ function createShiftId() {
   }
 
   return `shift-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function createDeskCoverageId() {
+  if (globalThis.crypto?.randomUUID) {
+    return `desk-${globalThis.crypto.randomUUID()}`;
+  }
+
+  return `desk-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function createWorkerId(name, workers) {

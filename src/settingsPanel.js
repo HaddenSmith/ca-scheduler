@@ -93,6 +93,18 @@ function createSettingsElements() {
           <legend>Warnings</legend>
 
           <label class="checkbox-row">
+            <input name="weeklyMaxHoursWarningEnabled" type="checkbox" />
+            <span>Enable weekly max hours warning</span>
+          </label>
+
+          <div class="form-grid">
+            <label>
+              <span>Max Weekly Hours per Worker</span>
+              <input name="maxWeeklyHours" type="number" min="1" max="168" step="0.25" />
+            </label>
+          </div>
+
+          <label class="checkbox-row">
             <input name="longShiftWarningEnabled" type="checkbox" />
             <span>Enable long-shift warning</span>
           </label>
@@ -197,6 +209,8 @@ function populateSettingsForm() {
   getField("weekStartsOn").value = String(settings.weekStartsOn);
   getField("startTime").value = formatTimeForDisplay(settings.startTime);
   getField("endTime").value = formatTimeForDisplay(settings.endTime);
+  getField("weeklyMaxHoursWarningEnabled").checked = settings.weeklyMaxHoursWarningEnabled !== false;
+  getField("maxWeeklyHours").value = String(settings.maxWeeklyHours ?? DEFAULT_SETTINGS.maxWeeklyHours);
   getField("longShiftWarningEnabled").checked = settings.longShiftWarningEnabled !== false;
   getField("maxConsecutiveWorkHours").value = String(settings.maxConsecutiveWorkHours ?? DEFAULT_SETTINGS.maxConsecutiveWorkHours);
   getField("requiredBreakMinutes").value = String(settings.requiredBreakMinutes ?? DEFAULT_SETTINGS.requiredBreakMinutes);
@@ -213,6 +227,7 @@ function readSettingsForm() {
   const earlyMorningResult = parseTimeInput(getField("earlyMorningThreshold").value);
   const slotMinutes = Number(getField("slotMinutes").value);
   const weekStartsOn = Number(getField("weekStartsOn").value);
+  const maxWeeklyHours = Number(getField("maxWeeklyHours").value);
   const maxConsecutiveWorkHours = Number(getField("maxConsecutiveWorkHours").value);
   const requiredBreakMinutes = Number(getField("requiredBreakMinutes").value);
 
@@ -234,6 +249,10 @@ function readSettingsForm() {
 
   if (startResult.isValid && endResult.isValid && timeToMinutes(startResult.value) === timeToMinutes(endResult.value)) {
     errors.push("Visible day start and end cannot be the same time.");
+  }
+
+  if (!Number.isFinite(maxWeeklyHours) || maxWeeklyHours <= 0) {
+    errors.push("Max weekly hours must be greater than 0.");
   }
 
   if (!Number.isFinite(maxConsecutiveWorkHours) || maxConsecutiveWorkHours <= 0) {
@@ -273,6 +292,10 @@ function readSettingsForm() {
       endTime: endResult.isValid ? endResult.value : activeContext.settings.endTime,
       slotMinutes,
       weekStartsOn,
+      weeklyMaxHoursWarningEnabled: getField("weeklyMaxHoursWarningEnabled").checked,
+      maxWeeklyHours: Number.isFinite(maxWeeklyHours)
+        ? maxWeeklyHours
+        : activeContext.settings.maxWeeklyHours,
       longShiftWarningEnabled: getField("longShiftWarningEnabled").checked,
       maxConsecutiveWorkHours: Number.isFinite(maxConsecutiveWorkHours)
         ? maxConsecutiveWorkHours

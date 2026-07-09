@@ -1,7 +1,7 @@
 import { getWeekStartDate, getTodayIsoDate } from "./dateUtils.js";
 import { DEFAULT_SETTINGS, SHIFT_TYPE_PRESETS } from "./model.js";
 import { normalizeScheduleTimeInput, timeToDisplayMinutes, timeToMinutes } from "./timeUtils.js";
-import { normalizeShift } from "./scheduleState.js";
+import { normalizeDeskCoverage, normalizeShift } from "./scheduleState.js";
 
 export const SCHEDULE_FILE_SCHEMA_VERSION = 1;
 export const SCHEDULE_FILE_APP_ID = "conference-scheduler";
@@ -16,6 +16,7 @@ export function createScheduleFile(schedule) {
   const now = new Date().toISOString();
   const settings = normalizeSettingsForExport(schedule.settings);
   const shifts = (schedule.shifts ?? []).map((shift) => normalizeShift(shift, settings));
+  const deskCoverage = (schedule.deskCoverage ?? []).map((coverage) => normalizeDeskCoverage(coverage, settings));
 
   return {
     schemaVersion: SCHEDULE_FILE_SCHEMA_VERSION,
@@ -26,6 +27,7 @@ export function createScheduleFile(schedule) {
     data: {
       workers: schedule.workers ?? [],
       shifts,
+      deskCoverage,
       onCallAssignments: schedule.onCallAssignments ?? [],
       settings,
       currentWeekStart: schedule.weekStartDate,
@@ -93,6 +95,7 @@ export function validateAndNormalizeScheduleFile(file) {
   const workerIds = new Set(workers.map((worker) => worker.id));
   const settings = normalizeSettings(data.settings, warnings);
   const shifts = normalizeShifts(data.shifts, workerIds, settings, errors);
+  const deskCoverage = normalizeDeskCoverageItems(data.deskCoverage ?? [], settings, errors);
   const onCallAssignments = normalizeOnCallAssignments(
     data.onCallAssignments ?? data.onCall ?? data.nightlyOnCall ?? [],
     workerIds,
@@ -124,6 +127,7 @@ export function validateAndNormalizeScheduleFile(file) {
       weekStartDate,
       workers,
       shifts,
+      deskCoverage,
       onCallAssignments,
       revision: Number.isInteger(file.revision) ? file.revision : 1,
       lastModifiedAt: file.lastModifiedAt ?? file.exportedAt ?? "",
@@ -224,6 +228,14 @@ function normalizeSettings(value, warnings) {
 
   settings.longShiftWarningEnabled = settings.longShiftWarningEnabled !== false;
   settings.lateNightWarningEnabled = settings.lateNightWarningEnabled !== false;
+  settings.weeklyMaxHoursWarningEnabled = settings.weeklyMaxHoursWarningEnabled !== false;
+
+  if (!isPositiveNumber(settings.maxWeeklyHours)) {
+    warnings.push("Invalid max weekly hours was replaced with 40.");
+    settings.maxWeeklyHours = DEFAULT_SETTINGS.maxWeeklyHours;
+  } else {
+    settings.maxWeeklyHours = Number(settings.maxWeeklyHours);
+  }
 
   if (!isPositiveNumber(settings.maxConsecutiveWorkHours)) {
     warnings.push("Invalid max consecutive work hours was replaced with 5.");
@@ -356,6 +368,88 @@ function normalizeShifts(value, workerIds, settings, errors) {
   });
 
   return shifts;
+}
+
+function normalizeDeskCoverageItems(value, settings, errors) {
+  if (!Array.isArray(value)) {
+    errors.push("data.deskCoverage must be an array when provided.");
+    return [];
+  }
+
+  const items = [];
+  const seenIds = new Set();
+
+  value.forEach((coverage, index) => {
+    if (!coverage || typeof coverage !== "object" || Array.isArray(coverage)) {
+      errors.push(`Desk coverage ${index + 1} must be an object.`);
+      return;
+    }
+
+    const id = String(coverage.id ?? "").trim();
+    const date = String(coverage.date ?? "").trim();
+    const startTime = String(coverage.startTime ?? coverage.start ?? "").trim();
+    const endTime = String(coverage.endTime ?? coverage.end ?? "").trim();
+
+    if (!id) {
+      errors.push(`Desk coverage ${index + 1} is missing an id.`);
+    } else if (seenIds.has(id)) {
+      errors.push(`Desk coverage id "${id}" is duplicated.`);
+    }
+
+    if (!isIsoDate(date)) {
+      errors.push(`Desk coverage ${id || index + 1} has an invalid date.`);
+    }
+
+    if (!startTime) {
+      errors.push(`Desk coverage ${id || index + 1} is missing a start time.`);
+    }
+
+    if (!endTime) {
+      errors.push(`Desk coverage ${id || index + 1} is missing an end time.`);
+    }
+
+    const startResult = startTime ? normalizeScheduleTimeInput(startTime, settings) : null;
+    const endResult = endTime ? normalizeScheduleTimeInput(endTime, settings) : null;
+
+    if (startResult && !startResult.isValid) {
+      errors.push(`Desk coverage ${id || index + 1} start time: ${startResult.error}`);
+    }
+
+    if (endResult && !endResult.isValid) {
+      errors.push(`Desk coverage ${id || index + 1} end time: ${endResult.error}`);
+    }
+
+    if (startResult?.isValid && endResult?.isValid) {
+      const start = timeToDisplayMinutes(startResult.value, settings);
+      const end = timeToDisplayMinutes(endResult.value, settings);
+
+      if (end <= start) {
+        errors.push(`Desk coverage ${id || index + 1} end time must be after start time.`);
+      }
+    }
+
+    if (
+      id &&
+      !seenIds.has(id) &&
+      isIsoDate(date) &&
+      startResult?.isValid &&
+      endResult?.isValid
+    ) {
+      items.push(normalizeDeskCoverage({
+        ...coverage,
+        id,
+        date,
+        startTime: startResult.value,
+        endTime: endResult.value,
+        label: String(coverage.label ?? "D"),
+        notes: String(coverage.notes ?? ""),
+        color: String(coverage.color ?? ""),
+      }, settings));
+      seenIds.add(id);
+    }
+  });
+
+  return items;
 }
 
 function normalizeOnCallAssignments(value, workerIds, errors) {

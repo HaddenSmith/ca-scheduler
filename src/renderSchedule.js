@@ -13,6 +13,7 @@ import {
 const VIEW_LAYOUTS = {
   detailed: {
     className: "is-detailed",
+    deskCoverageWidth: 42,
     showDailyTotals: true,
     showShiftTime: true,
     slotHeight: 10,
@@ -21,6 +22,7 @@ const VIEW_LAYOUTS = {
   },
   compact: {
     className: "is-compact",
+    deskCoverageWidth: 28,
     showDailyTotals: false,
     showShiftTime: false,
     slotHeight: 2.5,
@@ -103,6 +105,7 @@ function renderDayGrid(schedule, isoDate, layout, callbacks) {
   grid.className = "day-grid";
   grid.dataset.date = isoDate;
   grid.style.setProperty("--slot-height", `${layout.slotHeight}px`);
+  grid.style.setProperty("--desk-coverage-width", `${layout.deskCoverageWidth}px`);
   grid.style.setProperty("--worker-count", schedule.workers.length);
   grid.style.setProperty("--timeline-height", `${height}px`);
   grid.append(renderTimeRail(settings, height, layout));
@@ -125,6 +128,17 @@ function renderDayGrid(schedule, isoDate, layout, callbacks) {
       ),
     );
   }
+
+  grid.append(
+    renderDeskCoverageColumn(
+      (schedule.deskCoverage ?? []).filter((coverage) => coverage.date === isoDate),
+      settings,
+      height,
+      layout,
+      callbacks,
+      isoDate,
+    ),
+  );
 
   return grid;
 }
@@ -245,6 +259,98 @@ function renderWorkerColumn(
   column.append(onCall);
 
   return column;
+}
+
+function renderDeskCoverageColumn(coverageItems, settings, height, layout, callbacks, isoDate) {
+  const column = document.createElement("div");
+  const header = document.createElement("div");
+  const body = document.createElement("div");
+  const footer = document.createElement("div");
+
+  column.className = "desk-coverage-column";
+  column.dataset.date = isoDate;
+  header.className = "column-header desk-coverage-header";
+  header.textContent = layout.viewMode === "compact" ? "D" : "Desk";
+  body.className = "desk-coverage-timeline";
+  body.dataset.date = isoDate;
+  body.style.height = `${height}px`;
+
+  for (const coverage of layoutOverlappingShifts(coverageItems, settings)) {
+    body.append(renderDeskCoverageBlock(coverage, settings, layout, callbacks));
+  }
+
+  if (!callbacks.readOnly) {
+    attachGridCreateInteractions(body, {
+      callbacks,
+      layout,
+      onCreate: callbacks.onAddDeskCoverage,
+      settings,
+    });
+  }
+
+  footer.className = "desk-coverage-footer";
+  footer.textContent = "D";
+  column.append(header, body, footer);
+
+  return column;
+}
+
+function renderDeskCoverageBlock(layoutCoverage, settings, layout, callbacks) {
+  const node = document.createElement("button");
+  const coverage = layoutCoverage.shift;
+  const { start } = getScheduleBoundaryMinutes(settings);
+  const startMinutes = timeToDisplayMinutes(coverage.startTime, settings);
+  const endMinutes = timeToDisplayMinutes(coverage.endTime, settings);
+  const adjustedEnd = endMinutes <= startMinutes ? endMinutes + 24 * 60 : endMinutes;
+  const top = ((startMinutes - start) / settings.slotMinutes) * layout.slotHeight;
+  const height = Math.max(
+    layout.slotHeight,
+    ((adjustedEnd - startMinutes) / settings.slotMinutes) * layout.slotHeight,
+  );
+
+  node.type = "button";
+  node.className = "desk-coverage-block";
+  node.dataset.deskCoverageId = coverage.id;
+  node.style.setProperty("--desk-coverage-color", coverage.color || "#a6a6a6");
+  node.style.top = `${top}px`;
+  node.style.height = `${height}px`;
+  node.style.left = `${layoutCoverage.leftPercent}%`;
+  node.style.width = `calc(${layoutCoverage.widthPercent}% - 3px)`;
+  node.title = `Desk coverage: ${formatTimeForDisplay(coverage.startTime)} - ${formatTimeForDisplay(coverage.endTime)}. ${callbacks.readOnly ? "Click for details." : "Click to edit."}`;
+  node.setAttribute(
+    "aria-label",
+    `Desk coverage, ${formatTimeForDisplay(coverage.startTime)} to ${formatTimeForDisplay(coverage.endTime)}. ${callbacks.readOnly ? "Click for details." : "Click to edit."}`,
+  );
+
+  const label = document.createElement("span");
+  label.className = "desk-coverage-label";
+  label.textContent = coverage.label || "D";
+  node.append(label);
+
+  if (layout.showShiftTime) {
+    const time = document.createElement("span");
+    time.className = "desk-coverage-time";
+    time.textContent = `${formatTimeForDisplay(coverage.startTime)}-${formatTimeForDisplay(coverage.endTime)}`;
+    node.append(time);
+  }
+
+  if (coverage.notes?.trim()) {
+    const noteMarker = document.createElement("span");
+    noteMarker.className = "shift-note-marker";
+    noteMarker.textContent = "*";
+    noteMarker.title = "Desk coverage notes";
+    node.append(noteMarker);
+  }
+
+  node.addEventListener("click", () => {
+    if (callbacks.readOnly) {
+      callbacks.onViewDeskCoverage?.(coverage.id);
+    } else {
+      callbacks.onEditDeskCoverage?.(coverage.id);
+    }
+  });
+
+  return node;
 }
 
 function createOnCallTag(text) {

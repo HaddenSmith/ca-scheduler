@@ -28,6 +28,17 @@
  */
 
 /**
+ * @typedef {Object} DeskCoverage
+ * @property {string} id
+ * @property {string} date ISO date in YYYY-MM-DD format.
+ * @property {string} startTime HH:mm, local schedule time.
+ * @property {string} endTime HH:mm, local schedule time.
+ * @property {string} label
+ * @property {string} notes
+ * @property {string} color
+ */
+
+/**
  * @typedef {Object} OnCallAssignment Nightly on-call assignment for one date.
  * @property {string} date ISO date in YYYY-MM-DD format.
  * @property {string} primaryWorkerId
@@ -47,6 +58,8 @@
  * @property {boolean} lateNightWarningEnabled
  * @property {string} lateNightThreshold
  * @property {string} earlyMorningThreshold
+ * @property {boolean} weeklyMaxHoursWarningEnabled
+ * @property {number} maxWeeklyHours
  */
 
 export const DEFAULT_SETTINGS = {
@@ -60,6 +73,8 @@ export const DEFAULT_SETTINGS = {
   lateNightWarningEnabled: true,
   lateNightThreshold: "23:00",
   earlyMorningThreshold: "08:00",
+  weeklyMaxHoursWarningEnabled: true,
+  maxWeeklyHours: 40,
   shiftColors: {
     "Check In": "#91cf50",
     "Check Out": "#fed866",

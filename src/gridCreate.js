@@ -7,7 +7,7 @@ import {
 const DRAG_THRESHOLD_PX = 5;
 const DEFAULT_CLICK_DURATION_MINUTES = 30;
 
-export function attachGridCreateInteractions(timeline, { callbacks, layout, settings }) {
+export function attachGridCreateInteractions(timeline, { callbacks, layout, onCreate, settings }) {
   let pointerContext = null;
 
   timeline.addEventListener("pointerdown", (event) => {
@@ -67,7 +67,9 @@ export function attachGridCreateInteractions(timeline, { callbacks, layout, sett
     pointerContext = null;
 
     if (range) {
-      callbacks.onAddShift?.({
+      const create = onCreate ?? callbacks.onAddShift;
+
+      create?.({
         date: timeline.dataset.date,
         workerId: timeline.dataset.workerId,
         startTime: minutesToTimeValue(range.start),
