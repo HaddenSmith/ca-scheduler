@@ -1,0 +1,297 @@
+import { formatTimeForDisplay, WEEKDAY_NAMES } from "./dateUtils.js";
+import { DEFAULT_SHIFT_COLORS } from "./model.js";
+import { minutesToTimeValue, parseTimeInput, timeToMinutes } from "./timeUtils.js";
+
+const SLOT_OPTIONS = [15, 30, 60];
+const COLOR_FIELDS = [
+  { key: "Check In", label: "Check In" },
+  { key: "Check Out", label: "Check Out" },
+  { key: "Roving", label: "Roving" },
+  { key: "Projects", label: "Projects" },
+  { key: "Staff Meeting", label: "Staff Meeting" },
+  { key: "Desk", label: "Desk" },
+  { key: "Class", label: "Class" },
+  { key: "On Call", label: "On Call / Backup On Call", linkedKeys: ["On Call", "Backup On Call"] },
+  { key: "OFF", label: "OFF" },
+];
+
+let settingsElements;
+let activeContext;
+let activeResolve;
+
+export function openSettingsPanel(schedule) {
+  settingsElements = settingsElements ?? createSettingsElements();
+
+  if (activeResolve) {
+    closeSettings({ action: "cancel", settings: null });
+  }
+
+  activeContext = {
+    schedule,
+    settings: {
+      ...schedule.settings,
+      shiftColors: {
+        ...DEFAULT_SHIFT_COLORS,
+        ...(schedule.settings.shiftColors ?? {}),
+      },
+    },
+  };
+
+  populateSettingsForm();
+  settingsElements.backdrop.classList.remove("is-hidden");
+  getField("slotMinutes").focus();
+
+  return new Promise((resolve) => {
+    activeResolve = resolve;
+  });
+}
+
+function createSettingsElements() {
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop is-hidden";
+  backdrop.innerHTML = `
+    <section class="shift-editor settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <header class="shift-editor-header">
+        <div>
+          <p class="eyebrow">Schedule</p>
+          <h2 id="settings-title">Settings</h2>
+        </div>
+        <button type="button" class="icon-button" data-settings-action="cancel" aria-label="Close settings">x</button>
+      </header>
+
+      <form class="shift-editor-form" novalidate>
+        <div class="form-errors" aria-live="polite" hidden></div>
+
+        <div class="form-grid">
+          <label>
+            <span>Time Increment</span>
+            <select name="slotMinutes"></select>
+          </label>
+
+          <label>
+            <span>Week Start Day</span>
+            <select name="weekStartsOn"></select>
+          </label>
+        </div>
+
+        <div class="form-grid">
+          <label>
+            <span>Visible Day Start</span>
+            <input name="startTime" type="text" list="settings-time-options" inputmode="numeric" required />
+          </label>
+
+          <label>
+            <span>Visible Day End</span>
+            <input name="endTime" type="text" list="settings-time-options" inputmode="numeric" required />
+          </label>
+        </div>
+
+        <datalist id="settings-time-options"></datalist>
+
+        <fieldset class="settings-fieldset">
+          <legend>Default Shift Colors</legend>
+          <div class="color-settings-grid"></div>
+        </fieldset>
+
+        <footer class="shift-editor-actions align-end">
+          <div>
+            <button type="button" class="secondary-button" data-settings-action="cancel">Cancel</button>
+            <button type="submit" class="primary-button">Save Settings</button>
+          </div>
+        </footer>
+      </form>
+    </section>
+  `;
+
+  const form = backdrop.querySelector("form");
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const result = readSettingsForm();
+
+    if (result.errors.length > 0) {
+      showErrors(result.errors);
+      return;
+    }
+
+    closeSettings({ action: "save", settings: result.settings });
+  });
+
+  for (const button of backdrop.querySelectorAll('[data-settings-action="cancel"]')) {
+    button.addEventListener("click", () => closeSettings({ action: "cancel", settings: null }));
+  }
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !backdrop.classList.contains("is-hidden")) {
+      closeSettings({ action: "cancel", settings: null });
+    }
+  });
+
+  document.body.append(backdrop);
+
+  return {
+    backdrop,
+    colorGrid: backdrop.querySelector(".color-settings-grid"),
+    errors: backdrop.querySelector(".form-errors"),
+    form,
+    timeOptions: backdrop.querySelector("#settings-time-options"),
+  };
+}
+
+function populateSettingsForm() {
+  const settings = activeContext.settings;
+
+  clearErrors();
+  fillSelect(
+    getField("slotMinutes"),
+    SLOT_OPTIONS.map((value) => ({ value: String(value), label: `${value} minutes` })),
+  );
+  fillSelect(
+    getField("weekStartsOn"),
+    WEEKDAY_NAMES.map((label, value) => ({ value: String(value), label })),
+  );
+  fillDatalist(settingsElements.timeOptions, buildFullDayTimeOptions());
+  renderColorFields(settings);
+
+  getField("slotMinutes").value = String(settings.slotMinutes);
+  getField("weekStartsOn").value = String(settings.weekStartsOn);
+  getField("startTime").value = formatTimeForDisplay(settings.startTime);
+  getField("endTime").value = formatTimeForDisplay(settings.endTime);
+}
+
+function readSettingsForm() {
+  const errors = [];
+  const startResult = parseTimeInput(getField("startTime").value);
+  const endResult = parseTimeInput(getField("endTime").value);
+  const slotMinutes = Number(getField("slotMinutes").value);
+  const weekStartsOn = Number(getField("weekStartsOn").value);
+
+  if (!SLOT_OPTIONS.includes(slotMinutes)) {
+    errors.push("Choose a valid time increment.");
+  }
+
+  if (!Number.isInteger(weekStartsOn) || weekStartsOn < 0 || weekStartsOn > 6) {
+    errors.push("Choose a valid week start day.");
+  }
+
+  if (!startResult.isValid) {
+    errors.push(`Start time: ${startResult.error}`);
+  }
+
+  if (!endResult.isValid) {
+    errors.push(`End time: ${endResult.error}`);
+  }
+
+  if (startResult.isValid && endResult.isValid && timeToMinutes(startResult.value) === timeToMinutes(endResult.value)) {
+    errors.push("Visible day start and end cannot be the same time.");
+  }
+
+  const shiftColors = {
+    ...DEFAULT_SHIFT_COLORS,
+    ...(activeContext.settings.shiftColors ?? {}),
+  };
+
+  for (const field of COLOR_FIELDS) {
+    const color = getField(`color-${field.key}`).value;
+
+    for (const key of field.linkedKeys ?? [field.key]) {
+      shiftColors[key] = color;
+    }
+  }
+
+  return {
+    errors,
+    settings: {
+      ...activeContext.settings,
+      startTime: startResult.isValid ? startResult.value : activeContext.settings.startTime,
+      endTime: endResult.isValid ? endResult.value : activeContext.settings.endTime,
+      slotMinutes,
+      weekStartsOn,
+      shiftColors,
+    },
+  };
+}
+
+function renderColorFields(settings) {
+  settingsElements.colorGrid.replaceChildren();
+
+  for (const field of COLOR_FIELDS) {
+    const label = document.createElement("label");
+    const text = document.createElement("span");
+    const input = document.createElement("input");
+
+    text.textContent = field.label;
+    input.name = `color-${field.key}`;
+    input.type = "color";
+    input.value = settings.shiftColors?.[field.key] ?? DEFAULT_SHIFT_COLORS[field.key];
+
+    label.append(text, input);
+    settingsElements.colorGrid.append(label);
+  }
+}
+
+function closeSettings(result) {
+  settingsElements.backdrop.classList.add("is-hidden");
+  clearErrors();
+
+  const resolve = activeResolve;
+  activeContext = null;
+  activeResolve = null;
+
+  if (resolve) {
+    resolve(result);
+  }
+}
+
+function getField(name) {
+  return settingsElements.form.querySelector(`[name="${name}"]`);
+}
+
+function fillSelect(select, options) {
+  select.replaceChildren();
+
+  for (const option of options) {
+    const node = document.createElement("option");
+    node.value = option.value;
+    node.textContent = option.label;
+    select.append(node);
+  }
+}
+
+function fillDatalist(datalist, options) {
+  datalist.replaceChildren();
+
+  for (const option of options) {
+    const node = document.createElement("option");
+    node.value = option.value;
+    datalist.append(node);
+  }
+}
+
+function buildFullDayTimeOptions() {
+  const options = [];
+
+  for (let minute = 0; minute < 24 * 60; minute += 15) {
+    options.push(formatTimeForDisplay(minutesToTimeValue(minute)));
+  }
+
+  return options;
+}
+
+function showErrors(errors) {
+  settingsElements.errors.replaceChildren();
+
+  for (const error of errors) {
+    const item = document.createElement("p");
+    item.textContent = error;
+    settingsElements.errors.append(item);
+  }
+
+  settingsElements.errors.hidden = false;
+}
+
+function clearErrors() {
+  settingsElements.errors.replaceChildren();
+  settingsElements.errors.hidden = true;
+}

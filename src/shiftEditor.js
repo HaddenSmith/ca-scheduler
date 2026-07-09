@@ -1,0 +1,859 @@
+import {
+  WEEKDAY_NAMES,
+  buildWeekDates,
+  formatTimeForDisplay,
+  parseIsoDate,
+} from "./dateUtils.js";
+import {
+  ROVING_SUBTYPE_NOTES,
+  ROVING_SUBTYPES,
+  SHIFT_TYPE_PRESETS,
+} from "./model.js";
+import {
+  getShiftTypePreset,
+  inferShiftType,
+  shiftHasPhoneCoverage,
+} from "./scheduleState.js";
+import { MAX_REPEAT_OCCURRENCES, getRepeatOccurrenceDates } from "./repeatShifts.js";
+import { buildTimeInputOptions, normalizeScheduleTimeInput } from "./timeUtils.js";
+import { validateShift } from "./validation.js";
+
+let editorElements;
+let activeContext;
+let activeResolve;
+let isProgrammaticFieldUpdate = false;
+
+const REPEAT_OPTIONS = [
+  { value: "none", label: "None" },
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+];
+
+export function openShiftEditor({ mode, schedule, shift }) {
+  editorElements = editorElements ?? createEditorElements();
+
+  if (activeResolve) {
+    closeEditor({ action: "cancel", shift: null });
+  }
+
+  activeContext = {
+    mode,
+    schedule,
+    shift: prepareShiftForEditing(shift, schedule),
+  };
+
+  populateForm(activeContext);
+  editorElements.backdrop.classList.remove("is-hidden");
+  getField("workerId").focus();
+
+  return new Promise((resolve) => {
+    activeResolve = resolve;
+  });
+}
+
+function createEditorElements() {
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop is-hidden";
+  backdrop.innerHTML = `
+    <section class="shift-editor" role="dialog" aria-modal="true" aria-labelledby="shift-editor-title">
+      <header class="shift-editor-header">
+        <div>
+          <p class="eyebrow">Schedule</p>
+          <h2 id="shift-editor-title">Edit Shift</h2>
+        </div>
+        <button type="button" class="icon-button" data-editor-action="cancel" aria-label="Close editor">x</button>
+      </header>
+
+      <form class="shift-editor-form" novalidate>
+        <div class="form-errors" aria-live="polite" hidden></div>
+
+        <label>
+          <span>Worker</span>
+          <select name="workerId" required></select>
+        </label>
+
+        <label>
+          <span>Date</span>
+          <select name="date" required></select>
+        </label>
+
+        <div class="form-grid">
+          <label>
+            <span>Start Time</span>
+            <input name="startTime" type="text" list="schedule-time-options" inputmode="numeric" required />
+          </label>
+
+          <label>
+            <span>End Time</span>
+            <input name="endTime" type="text" list="schedule-time-options" inputmode="numeric" required />
+          </label>
+        </div>
+
+        <datalist id="schedule-time-options"></datalist>
+
+        <label>
+          <span>Shift Type</span>
+          <select name="shiftType" required></select>
+        </label>
+
+        <label class="rove-type-row" hidden>
+          <span>Rove Type</span>
+          <select name="roveType"></select>
+        </label>
+
+        <label>
+          <span>Label</span>
+          <input name="label" type="text" />
+        </label>
+
+        <label>
+          <span>Notes</span>
+          <textarea name="notes" rows="3"></textarea>
+        </label>
+
+        <div class="form-grid">
+          <label>
+            <span>Color</span>
+            <input name="color" type="color" />
+          </label>
+
+          <div class="checkbox-stack">
+            <label class="checkbox-row">
+              <input name="countsTowardHours" type="checkbox" />
+              <span>Counts toward hours</span>
+            </label>
+            <label class="checkbox-row">
+              <input name="alsoOnCall" type="checkbox" />
+              <span>Also on call</span>
+            </label>
+            <label class="checkbox-row">
+              <input name="alsoBackupOnCall" type="checkbox" />
+              <span>Also backup on call</span>
+            </label>
+          </div>
+        </div>
+
+        <fieldset class="editor-fieldset repeat-section">
+          <legend>Repeat</legend>
+
+          <div class="form-grid">
+            <label>
+              <span>Repeat</span>
+              <select name="repeatFrequency"></select>
+            </label>
+
+            <label class="repeat-control">
+              <span>Repeat Until</span>
+              <input name="repeatUntil" type="date" />
+            </label>
+          </div>
+
+          <div class="form-grid repeat-control">
+            <label>
+              <span>Max Occurrences</span>
+              <input name="repeatMaxOccurrences" type="number" min="1" max="100" step="1" />
+            </label>
+          </div>
+
+          <div class="repeat-weekday-row" hidden>
+            <span>Weekdays</span>
+            <div class="weekday-picker"></div>
+          </div>
+
+          <p class="inline-warning repeat-phone-warning" hidden>Repeats include phone coverage.</p>
+        </fieldset>
+
+        <fieldset class="editor-fieldset copy-section">
+          <legend>Copy to Workers</legend>
+
+          <div class="copy-worker-grid"></div>
+
+          <div class="copy-actions-row">
+            <label>
+              <span>Copy Date</span>
+              <input name="copyDate" type="date" />
+            </label>
+            <button type="button" class="secondary-button" data-editor-action="copy">Copy to Workers</button>
+          </div>
+
+          <p class="inline-warning copy-phone-warning" hidden>Copies include phone coverage.</p>
+        </fieldset>
+
+        <footer class="shift-editor-actions">
+          <button type="button" class="danger-button" data-editor-action="delete">Delete</button>
+          <div>
+            <button type="button" class="secondary-button" data-editor-action="cancel">Cancel</button>
+            <button type="submit" class="primary-button">Save</button>
+          </div>
+        </footer>
+      </form>
+    </section>
+  `;
+
+  const form = backdrop.querySelector("form");
+  const copyButton = backdrop.querySelector('[data-editor-action="copy"]');
+  const copyPhoneWarning = backdrop.querySelector(".copy-phone-warning");
+  const copySection = backdrop.querySelector(".copy-section");
+  const copyWorkerGrid = backdrop.querySelector(".copy-worker-grid");
+  const deleteButton = backdrop.querySelector('[data-editor-action="delete"]');
+  const repeatPhoneWarning = backdrop.querySelector(".repeat-phone-warning");
+  const repeatWeekdayRow = backdrop.querySelector(".repeat-weekday-row");
+  const title = backdrop.querySelector("#shift-editor-title");
+  const errors = backdrop.querySelector(".form-errors");
+  const roveTypeRow = backdrop.querySelector(".rove-type-row");
+  const timeOptions = backdrop.querySelector("#schedule-time-options");
+
+  form.addEventListener("submit", handleSubmit);
+  form.querySelector('[name="shiftType"]').addEventListener("change", handleShiftTypeChange);
+  form.querySelector('[name="roveType"]').addEventListener("change", handleRoveTypeChange);
+  form.querySelector('[name="repeatFrequency"]').addEventListener("change", updateRepeatFields);
+  form.querySelector('[name="workerId"]').addEventListener("change", renderCopyWorkerOptions);
+  form.querySelector('[name="date"]').addEventListener("change", handleDateChange);
+  form.querySelector('[name="label"]').addEventListener("input", () => {
+    if (!isProgrammaticFieldUpdate) {
+      getField("label").dataset.userEdited = "true";
+    }
+  });
+  form.querySelector('[name="notes"]').addEventListener("input", () => {
+    if (!isProgrammaticFieldUpdate) {
+      getField("notes").dataset.userEdited = "true";
+    }
+  });
+
+  copyButton.addEventListener("click", handleCopyToWorkers);
+
+  for (const fieldName of ["alsoOnCall", "alsoBackupOnCall"]) {
+    form.querySelector(`[name="${fieldName}"]`).addEventListener("change", updatePhoneWarnings);
+  }
+
+  for (const fieldName of ["startTime", "endTime"]) {
+    form.querySelector(`[name="${fieldName}"]`).addEventListener("blur", () => {
+      normalizeTimeField(fieldName);
+    });
+  }
+
+  for (const button of backdrop.querySelectorAll('[data-editor-action="cancel"]')) {
+    button.addEventListener("click", () => closeEditor({ action: "cancel", shift: null }));
+  }
+
+  deleteButton.addEventListener("click", () => {
+    closeEditor({ action: "delete", shiftId: activeContext.shift.id });
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !backdrop.classList.contains("is-hidden")) {
+      closeEditor({ action: "cancel", shift: null });
+    }
+  });
+
+  document.body.append(backdrop);
+
+  return {
+    backdrop,
+    copyButton,
+    copyPhoneWarning,
+    copySection,
+    copyWorkerGrid,
+    deleteButton,
+    errors,
+    form,
+    repeatPhoneWarning,
+    repeatWeekdayRow,
+    roveTypeRow,
+    timeOptions,
+    title,
+  };
+}
+
+function populateForm(context) {
+  const { schedule, shift } = context;
+
+  editorElements.title.textContent = context.mode === "create" ? "Add Shift" : "Edit Shift";
+  editorElements.deleteButton.hidden = context.mode === "create";
+  clearErrors();
+
+  fillSelect(
+    getField("workerId"),
+    schedule.workers.map((worker) => ({ value: worker.id, label: worker.name })),
+  );
+
+  fillSelect(
+    getField("date"),
+    buildWeekDates(schedule.weekStartDate).map((date) => ({
+      value: date.isoDate,
+      label: `${date.dayName}, ${date.displayDate}`,
+    })),
+  );
+
+  fillDatalist(editorElements.timeOptions, buildTimeInputOptions(schedule.settings));
+
+  fillSelect(
+    getField("shiftType"),
+    Object.keys(SHIFT_TYPE_PRESETS).map((shiftType) => ({
+      value: shiftType,
+      label: shiftType,
+    })),
+  );
+
+  fillSelect(
+    getField("roveType"),
+    ROVING_SUBTYPES.map((roveType) => ({
+      value: roveType,
+      label: roveType,
+    })),
+  );
+
+  fillSelect(getField("repeatFrequency"), REPEAT_OPTIONS);
+  renderWeekdayOptions();
+
+  setValue("workerId", shift.workerId);
+  setValue("date", shift.date);
+  setTimeValue("startTime", shift.startTime);
+  setTimeValue("endTime", shift.endTime);
+  setValue("shiftType", shift.shiftType);
+  setValue("roveType", shift.roveType || "R-3");
+  setValue("label", shift.label);
+  setValue("notes", shift.notes);
+  setValue("color", shift.color);
+  getField("countsTowardHours").checked = shift.countsTowardHours;
+  getField("alsoOnCall").checked = Boolean(shift.alsoOnCall);
+  getField("alsoBackupOnCall").checked = Boolean(shift.alsoBackupOnCall);
+  setValue("repeatFrequency", "none");
+  setValue("repeatUntil", shift.date);
+  setValue("repeatMaxOccurrences", String(MAX_REPEAT_OCCURRENCES));
+  setValue("copyDate", shift.date);
+
+  const expectedLabel = getAutoLabelForShiftType(shift.shiftType, shift.roveType);
+  const labelField = getField("label");
+  const notesField = getField("notes");
+
+  labelField.dataset.userEdited = String(Boolean(shift.label && !isAutoLabelValue(shift.label, expectedLabel)));
+  labelField.dataset.lastAutoValue = expectedLabel;
+  notesField.dataset.userEdited = String(Boolean(shift.notes && !isRovingAutoNote(shift.notes)));
+  notesField.dataset.lastAutoValue = isRovingAutoNote(shift.notes) ? shift.notes : "";
+  setDefaultWeeklyDay(shift.date);
+  editorElements.copySection.hidden = context.mode === "create";
+  renderCopyWorkerOptions();
+  updateConditionalFields();
+  if (shift.shiftType === "Roving") {
+    setRovingNotesIfAuto(getField("roveType").value || "R-3");
+  }
+  updateRepeatFields();
+  updatePhoneWarnings();
+}
+
+function handleSubmit(event) {
+  event.preventDefault();
+
+  const shift = readShiftFromForm();
+  const repeatResult = readRepeatFromForm(shift);
+  const errors = [
+    ...validateShift(shift, activeContext.schedule),
+    ...repeatResult.errors,
+  ];
+
+  if (errors.length > 0) {
+    showErrors(errors);
+    return;
+  }
+
+  setTimeValue("startTime", shift.startTime);
+  setTimeValue("endTime", shift.endTime);
+  closeEditor({ action: "save", repeat: repeatResult.repeat, shift });
+}
+
+function handleShiftTypeChange() {
+  const shiftType = getField("shiftType").value;
+  const preset = getShiftTypePreset(shiftType, activeContext.schedule.settings);
+
+  setValue("color", preset.color);
+  getField("countsTowardHours").checked = preset.countsTowardHours;
+
+  if (shiftType === "OFF") {
+    getField("countsTowardHours").checked = false;
+    setTimeValue("startTime", activeContext.schedule.settings.startTime);
+    setTimeValue("endTime", activeContext.schedule.settings.endTime);
+    forceLabel("OFF");
+    clearRovingNotesIfAuto();
+  } else if (shiftType === "Roving") {
+    const roveType = getField("roveType").value || "R-3";
+    setValue("roveType", roveType);
+    setAutoLabel(roveType);
+    setRovingNotesIfAuto(roveType);
+  } else {
+    setValue("roveType", "");
+    setAutoLabel(getAutoLabelForShiftType(shiftType));
+    clearRovingNotesIfAuto();
+  }
+
+  updateConditionalFields();
+  updatePhoneWarnings();
+}
+
+function handleRoveTypeChange() {
+  const roveType = getField("roveType").value;
+
+  setAutoLabel(roveType);
+  setRovingNotesIfAuto(roveType);
+}
+
+function handleDateChange() {
+  const date = getField("date").value;
+
+  if (!getField("copyDate").value || getField("copyDate").value < date) {
+    setValue("copyDate", date);
+  }
+
+  if (!getField("repeatUntil").value || getField("repeatUntil").value < date) {
+    setValue("repeatUntil", date);
+  }
+
+  setDefaultWeeklyDay(date);
+  updateRepeatFields();
+}
+
+function handleCopyToWorkers() {
+  const shift = readShiftFromForm();
+  const copy = readCopySelection();
+  const errors = [...validateShift(shift, activeContext.schedule), ...copy.errors];
+
+  if (errors.length > 0) {
+    showErrors(errors);
+    return;
+  }
+
+  if (shiftHasPhoneCoverage(shift)) {
+    const confirmed = globalThis.confirm(
+      "This will copy on-call phone coverage to the selected worker shifts. Continue?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+  }
+
+  closeEditor({
+    action: "copy",
+    copy: copy.value,
+    shift,
+  });
+}
+
+function readShiftFromForm() {
+  const shiftType = getField("shiftType").value;
+  const preset = getShiftTypePreset(shiftType, activeContext.schedule.settings);
+  const startResult = normalizeScheduleTimeInput(getField("startTime").value, activeContext.schedule.settings);
+  const endResult = normalizeScheduleTimeInput(getField("endTime").value, activeContext.schedule.settings);
+  const roveType = shiftType === "Roving" ? getField("roveType").value : "";
+  const label = getField("label").value.trim() || roveType || preset.label || shiftType;
+
+  return {
+    ...activeContext.shift,
+    workerId: getField("workerId").value,
+    date: getField("date").value,
+    startTime: startResult.isValid ? startResult.value : getField("startTime").value.trim(),
+    endTime: endResult.isValid ? endResult.value : getField("endTime").value.trim(),
+    shiftType,
+    roveType,
+    name: shiftType === "Other" ? label : preset.name,
+    label,
+    notes: getField("notes").value.trim(),
+    color: getField("color").value,
+    countsTowardHours: getField("countsTowardHours").checked,
+    alsoOnCall: getField("alsoOnCall").checked,
+    alsoBackupOnCall: getField("alsoBackupOnCall").checked,
+  };
+}
+
+function readRepeatFromForm(shift) {
+  const frequency = getField("repeatFrequency").value;
+
+  if (frequency === "none") {
+    return {
+      errors: [],
+      repeat: null,
+    };
+  }
+
+  const errors = [];
+  const untilDate = getField("repeatUntil").value;
+  const maxOccurrences = Number(getField("repeatMaxOccurrences").value);
+  const weekdays = getCheckedWeekdays();
+
+  if (!isIsoDate(untilDate)) {
+    errors.push("Repeat until date is required.");
+  } else if (untilDate < shift.date) {
+    errors.push("Repeat until date must be on or after the shift date.");
+  }
+
+  if (!Number.isInteger(maxOccurrences) || maxOccurrences < 1) {
+    errors.push("Max occurrences must be at least 1.");
+  } else if (maxOccurrences > MAX_REPEAT_OCCURRENCES) {
+    errors.push(`Max occurrences cannot be more than ${MAX_REPEAT_OCCURRENCES}.`);
+  }
+
+  if (errors.length === 0) {
+    const repeatPlan = getRepeatOccurrenceDates({
+      frequency,
+      maxOccurrences,
+      startDate: shift.date,
+      untilDate,
+      weekdays,
+    });
+
+    if (repeatPlan.exceedsLimit) {
+      errors.push(`Repeat would create more than ${maxOccurrences} shifts. Shorten the date range or raise the limit up to ${MAX_REPEAT_OCCURRENCES}.`);
+    }
+  }
+
+  return {
+    errors,
+    repeat: errors.length === 0
+      ? {
+          frequency,
+          maxOccurrences,
+          untilDate,
+          weekdays,
+        }
+      : null,
+  };
+}
+
+function readCopySelection() {
+  const workerIds = [...editorElements.copyWorkerGrid.querySelectorAll('input[name="copyWorkerId"]:checked')]
+    .map((input) => input.value);
+  const date = getField("copyDate").value || getField("date").value;
+  const errors = [];
+
+  if (workerIds.length === 0) {
+    errors.push("Choose at least one worker to copy to.");
+  }
+
+  if (!isIsoDate(date)) {
+    errors.push("Choose a valid copy date.");
+  }
+
+  return {
+    errors,
+    value: {
+      date,
+      workerIds,
+    },
+  };
+}
+
+function closeEditor(result) {
+  editorElements.backdrop.classList.add("is-hidden");
+  clearErrors();
+
+  const resolve = activeResolve;
+  activeContext = null;
+  activeResolve = null;
+
+  if (resolve) {
+    resolve(result);
+  }
+}
+
+function prepareShiftForEditing(shift, schedule) {
+  const shiftType = inferShiftType(shift);
+  const preset = getShiftTypePreset(shiftType, schedule.settings);
+  const roveType = shiftType === "Roving" ? shift.roveType || inferRoveTypeFromLabel(shift.label) : "";
+
+  return {
+    ...shift,
+    shiftType,
+    roveType,
+    name: shift.name || preset.name,
+    label: shift.label || roveType || preset.label,
+    notes: shift.notes ?? "",
+    color: shift.color || preset.color,
+    countsTowardHours: Boolean(shift.countsTowardHours ?? preset.countsTowardHours),
+    alsoOnCall: Boolean(shift.alsoOnCall),
+    alsoBackupOnCall: Boolean(shift.alsoBackupOnCall),
+  };
+}
+
+function normalizeTimeField(fieldName) {
+  const result = normalizeScheduleTimeInput(getField(fieldName).value, activeContext.schedule.settings);
+
+  if (result.isValid) {
+    setTimeValue(fieldName, result.value);
+  }
+}
+
+function updateConditionalFields() {
+  const shiftType = getField("shiftType").value;
+  const countsTowardHours = getField("countsTowardHours");
+
+  editorElements.roveTypeRow.hidden = shiftType !== "Roving";
+  countsTowardHours.disabled = ["OFF", "On Call", "Backup On Call"].includes(shiftType);
+
+  if (countsTowardHours.disabled) {
+    countsTowardHours.checked = false;
+  }
+}
+
+function updateRepeatFields() {
+  const frequency = getField("repeatFrequency").value;
+  const date = getField("date").value;
+  const isRepeating = frequency !== "none";
+
+  for (const element of editorElements.form.querySelectorAll(".repeat-control")) {
+    element.hidden = !isRepeating;
+  }
+
+  editorElements.repeatWeekdayRow.hidden = frequency !== "weekly";
+  getField("repeatUntil").min = date;
+
+  if (!getField("repeatUntil").value || getField("repeatUntil").value < date) {
+    setValue("repeatUntil", date);
+  }
+
+  if (frequency === "weekly" && getCheckedWeekdays().length === 0) {
+    setDefaultWeeklyDay(date);
+  }
+
+  updatePhoneWarnings();
+}
+
+function updatePhoneWarnings() {
+  const hasPhoneCoverage = Boolean(
+    getField("alsoOnCall").checked ||
+    getField("alsoBackupOnCall").checked ||
+    getField("shiftType").value === "On Call" ||
+    getField("shiftType").value === "Backup On Call",
+  );
+
+  editorElements.copyPhoneWarning.hidden = !hasPhoneCoverage || editorElements.copySection.hidden;
+  editorElements.repeatPhoneWarning.hidden = !hasPhoneCoverage || getField("repeatFrequency").value === "none";
+}
+
+function getAutoLabelForShiftType(shiftType, roveType = "") {
+  if (shiftType === "Roving") {
+    return roveType || getField("roveType")?.value || "R-3";
+  }
+
+  const preset = getShiftTypePreset(shiftType, activeContext.schedule.settings);
+  return preset.label || shiftType;
+}
+
+function isAutoLabelValue(value, currentAutoValue = "") {
+  const label = String(value ?? "").trim();
+
+  if (!label) {
+    return true;
+  }
+
+  if (currentAutoValue && label === currentAutoValue) {
+    return true;
+  }
+
+  if (label === "Other") {
+    return true;
+  }
+
+  return getKnownAutoLabels().has(label);
+}
+
+function getKnownAutoLabels() {
+  return new Set([
+    ...Object.keys(SHIFT_TYPE_PRESETS),
+    ...Object.values(SHIFT_TYPE_PRESETS).map((preset) => preset.label).filter(Boolean),
+    ...ROVING_SUBTYPES,
+    "CO",
+    "Backup OC",
+  ]);
+}
+
+function renderCopyWorkerOptions() {
+  const currentWorkerId = getField("workerId").value;
+
+  editorElements.copyWorkerGrid.replaceChildren();
+
+  for (const worker of activeContext.schedule.workers) {
+    if (worker.id === currentWorkerId) {
+      continue;
+    }
+
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+    const text = document.createElement("span");
+
+    label.className = "checkbox-row copy-worker-option";
+    input.name = "copyWorkerId";
+    input.type = "checkbox";
+    input.value = worker.id;
+    text.textContent = worker.name;
+    label.append(input, text);
+    editorElements.copyWorkerGrid.append(label);
+  }
+}
+
+function renderWeekdayOptions() {
+  const picker = editorElements.form.querySelector(".weekday-picker");
+
+  picker.replaceChildren();
+
+  WEEKDAY_NAMES.forEach((weekday, value) => {
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+    const text = document.createElement("span");
+
+    label.className = "checkbox-row weekday-option";
+    input.name = "repeatWeekday";
+    input.type = "checkbox";
+    input.value = String(value);
+    text.textContent = weekday.slice(0, 3);
+    label.append(input, text);
+    picker.append(label);
+  });
+}
+
+function setDefaultWeeklyDay(date) {
+  const weekday = String(parseIsoDate(date).getDay());
+
+  for (const input of editorElements.form.querySelectorAll('input[name="repeatWeekday"]')) {
+    input.checked = input.value === weekday;
+  }
+}
+
+function getCheckedWeekdays() {
+  return [...editorElements.form.querySelectorAll('input[name="repeatWeekday"]:checked')]
+    .map((input) => Number(input.value));
+}
+
+function setAutoLabel(value) {
+  const labelField = getField("label");
+  const userEdited = labelField.dataset.userEdited === "true";
+  const shouldReplace = (
+    !userEdited ||
+    !labelField.value.trim() ||
+    labelField.value.trim() === labelField.dataset.lastAutoValue ||
+    isAutoLabelValue(labelField.value, labelField.dataset.lastAutoValue)
+  );
+
+  if (shouldReplace) {
+    setValue("label", value);
+    labelField.dataset.userEdited = "false";
+  }
+
+  labelField.dataset.lastAutoValue = value;
+}
+
+function forceLabel(value) {
+  const labelField = getField("label");
+  setValue("label", value);
+  labelField.dataset.userEdited = "false";
+  labelField.dataset.lastAutoValue = value;
+}
+
+function setRovingNotesIfAuto(roveType) {
+  const notesField = getField("notes");
+  const description = ROVING_SUBTYPE_NOTES[roveType] ?? "";
+
+  if (!description) {
+    return;
+  }
+
+  if (shouldReplaceAutoNotes(notesField)) {
+    setValue("notes", description);
+    notesField.dataset.userEdited = "false";
+  }
+
+  notesField.dataset.lastAutoValue = description;
+}
+
+function clearRovingNotesIfAuto() {
+  const notesField = getField("notes");
+
+  if (shouldReplaceAutoNotes(notesField)) {
+    setValue("notes", "");
+    notesField.dataset.userEdited = "false";
+  }
+
+  notesField.dataset.lastAutoValue = "";
+}
+
+function shouldReplaceAutoNotes(notesField) {
+  const value = notesField.value.trim();
+
+  return (
+    !value ||
+    notesField.dataset.userEdited !== "true" ||
+    value === notesField.dataset.lastAutoValue ||
+    isRovingAutoNote(value)
+  );
+}
+
+function isRovingAutoNote(value) {
+  const note = String(value ?? "").trim();
+  return Object.values(ROVING_SUBTYPE_NOTES).includes(note);
+}
+
+function inferRoveTypeFromLabel(label) {
+  const normalized = String(label ?? "").trim().toUpperCase().replace(/^R(\d+)$/, "R-$1");
+
+  if (ROVING_SUBTYPES.includes(normalized)) {
+    return normalized;
+  }
+
+  return "R-3";
+}
+
+function isIsoDate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function getField(name) {
+  return editorElements.form.querySelector(`[name="${name}"]`);
+}
+
+function setValue(name, value) {
+  isProgrammaticFieldUpdate = true;
+  getField(name).value = value ?? "";
+  isProgrammaticFieldUpdate = false;
+}
+
+function setTimeValue(name, value) {
+  setValue(name, value ? formatTimeForDisplay(value) : "");
+}
+
+function fillSelect(select, options) {
+  select.replaceChildren();
+
+  for (const option of options) {
+    const node = document.createElement("option");
+    node.value = option.value;
+    node.textContent = option.label;
+    select.append(node);
+  }
+}
+
+function fillDatalist(datalist, options) {
+  datalist.replaceChildren();
+
+  for (const option of options) {
+    const node = document.createElement("option");
+    node.value = option.value;
+    node.label = option.label;
+    datalist.append(node);
+  }
+}
+
+function showErrors(errors) {
+  editorElements.errors.replaceChildren();
+
+  for (const error of errors) {
+    const item = document.createElement("p");
+    item.textContent = error;
+    editorElements.errors.append(item);
+  }
+
+  editorElements.errors.hidden = false;
+}
+
+function clearErrors() {
+  editorElements.errors.replaceChildren();
+  editorElements.errors.hidden = true;
+}

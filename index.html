@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Conference Assistant Scheduler Prototype</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Prototype</p>
+          <h1>Conference Assistant Scheduler</h1>
+          <p class="mode-badge" data-viewer-mode-indicator hidden>Viewer Mode</p>
+        </div>
+        <div class="header-actions" aria-label="Future JSON actions">
+          <button type="button" class="import-json-button">Import JSON</button>
+          <button type="button" class="export-json-button">Export JSON</button>
+          <input id="json-import-input" type="file" accept="application/json,.json" hidden />
+        </div>
+      </header>
+
+      <p id="file-status" class="file-status" aria-live="polite" hidden></p>
+
+      <section class="toolbar" aria-label="Schedule controls">
+        <div class="toolbar-title">
+          <p class="eyebrow">Week</p>
+          <h2 id="week-range-label">July 4-10, 2026</h2>
+        </div>
+        <div class="toolbar-actions">
+          <div class="week-navigation" role="group" aria-label="Week navigation">
+            <button type="button" class="secondary-button previous-week-button">Previous Week</button>
+            <button type="button" class="secondary-button current-week-button">Today</button>
+            <button type="button" class="secondary-button next-week-button">Next Week</button>
+          </div>
+          <div class="segmented-control" role="group" aria-label="View layout">
+            <button type="button" data-view-mode="detailed" aria-pressed="true">
+              Detailed Day View
+            </button>
+            <button type="button" data-view-mode="compact" aria-pressed="false">
+              Compact Week View
+            </button>
+          </div>
+          <button type="button" class="secondary-button manage-workers-button">
+            Manage Workers
+          </button>
+          <button type="button" class="secondary-button settings-button">
+            Settings
+          </button>
+        </div>
+      </section>
+
+      <section id="schedule-warnings" class="warnings-panel" aria-live="polite" hidden></section>
+
+      <section id="schedule-board" class="schedule-board" aria-label="Weekly schedule board"></section>
+
+      <section class="summary-section" aria-labelledby="week-summary-heading">
+        <div>
+          <p class="eyebrow">Hours Summary</p>
+          <h2 id="week-summary-heading">Worker Hours</h2>
+        </div>
+        <div id="week-summary"></div>
+      </section>
+    </main>
+
+    <template id="event-template">
+      <button type="button" class="shift-block">
+        <span class="shift-label"></span>
+        <span class="shift-time"></span>
+      </button>
+    </template>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

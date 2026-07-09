@@ -1,0 +1,17 @@
+# Local/exported schedule data
+exports/
+data/
+*.local.json
+*.lock.json
+
+# Secrets
+.env
+.env.*
+
+# Logs / OS junk
+*.log
+.DS_Store
+Thumbs.db
+
+# Dependencies, if added later
+node_modules/
