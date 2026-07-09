@@ -27,7 +27,12 @@ import { sampleSchedule } from "./sampleData.js";
 import { openSettingsPanel } from "./settingsPanel.js";
 import { openShiftDetails } from "./shiftDetails.js";
 import { openShiftEditor } from "./shiftEditor.js";
-import { findPhoneCoverageOverlaps, findShiftOverlaps } from "./validation.js";
+import {
+  findLateNightMorningWarnings,
+  findLongConsecutiveWorkWarnings,
+  findPhoneCoverageOverlaps,
+  findShiftOverlaps,
+} from "./validation.js";
 import { openWorkerManager } from "./workerManager.js";
 
 let schedule = structuredClone(sampleSchedule);
@@ -371,15 +376,31 @@ function isViewerModeFromUrl() {
 function renderScheduleWarnings(container, currentSchedule) {
   const weekDates = buildWeekDates(currentSchedule.weekStartDate);
   const visibleDates = new Set(weekDates.map((date) => date.isoDate));
+  const nextDateAfterWeek = addDays(weekDates.at(-1).isoDate, 1);
   const visibleShifts = currentSchedule.shifts.filter((shift) => visibleDates.has(shift.date));
+  const scheduleWarningShifts = currentSchedule.shifts.filter((shift) => {
+    return visibleDates.has(shift.date) || shift.date === nextDateAfterWeek;
+  });
   const overlaps = findShiftOverlaps(visibleShifts, currentSchedule.settings);
   const phoneOverlaps = findPhoneCoverageOverlaps(
     visibleShifts,
     currentSchedule.settings,
   );
+  const longWorkWarnings = findLongConsecutiveWorkWarnings(
+    visibleShifts,
+    currentSchedule.settings,
+  );
+  const lateMorningWarnings = findLateNightMorningWarnings(
+    scheduleWarningShifts,
+    currentSchedule.settings,
+  );
 
   container.replaceChildren();
-  container.hidden = overlaps.length === 0 && phoneOverlaps.length === 0;
+  container.hidden =
+    overlaps.length === 0 &&
+    phoneOverlaps.length === 0 &&
+    longWorkWarnings.length === 0 &&
+    lateMorningWarnings.length === 0;
 
   if (container.hidden) {
     return;
@@ -417,6 +438,26 @@ function renderScheduleWarnings(container, currentSchedule) {
     const warning = document.createElement("p");
 
     warning.textContent = `${phoneOverlaps.length} phone coverage warning${phoneOverlaps.length === 1 ? "" : "s"}: ${visiblePhoneOverlaps.join("; ")}${phoneOverlaps.length > visiblePhoneOverlaps.length ? "; more..." : ""}.`;
+    container.append(warning);
+  }
+
+  if (longWorkWarnings.length > 0) {
+    const visibleLongWarnings = longWorkWarnings.slice(0, 3).map((warning) => {
+      return `${workerNames.get(warning.workerId) ?? "Unknown worker"} on ${dateLabels.get(warning.date) ?? warning.date} (${formatTimeForDisplay(warning.startTime)}-${formatTimeForDisplay(warning.endTime)}, ${warning.hours.toFixed(2)} hours)`;
+    });
+    const warning = document.createElement("p");
+
+    warning.textContent = `${longWorkWarnings.length} long consecutive work warning${longWorkWarnings.length === 1 ? "" : "s"}: ${visibleLongWarnings.join("; ")}${longWorkWarnings.length > visibleLongWarnings.length ? "; more..." : ""}.`;
+    container.append(warning);
+  }
+
+  if (lateMorningWarnings.length > 0) {
+    const visibleLateWarnings = lateMorningWarnings.slice(0, 3).map((warning) => {
+      return `${workerNames.get(warning.workerId) ?? "Unknown worker"} works late on ${dateLabels.get(warning.lateDate) ?? warning.lateDate} until ${formatTimeForDisplay(warning.lateEndTime)} and starts again ${dateLabels.get(warning.nextDate) ?? warning.nextDate} at ${formatTimeForDisplay(warning.earlyStartTime)}`;
+    });
+    const warning = document.createElement("p");
+
+    warning.textContent = `${lateMorningWarnings.length} late-night/morning warning${lateMorningWarnings.length === 1 ? "" : "s"}: ${visibleLateWarnings.join("; ")}${lateMorningWarnings.length > visibleLateWarnings.length ? "; more..." : ""}.`;
     container.append(warning);
   }
 }

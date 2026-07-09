@@ -14,6 +14,8 @@ export function serializeSchedule(schedule) {
 
 export function createScheduleFile(schedule) {
   const now = new Date().toISOString();
+  const settings = normalizeSettingsForExport(schedule.settings);
+  const shifts = (schedule.shifts ?? []).map((shift) => normalizeShift(shift, settings));
 
   return {
     schemaVersion: SCHEDULE_FILE_SCHEMA_VERSION,
@@ -23,9 +25,9 @@ export function createScheduleFile(schedule) {
     revision: schedule.revision ?? 1,
     data: {
       workers: schedule.workers ?? [],
-      shifts: schedule.shifts ?? [],
+      shifts,
       onCallAssignments: schedule.onCallAssignments ?? [],
-      settings: schedule.settings ?? DEFAULT_SETTINGS,
+      settings,
       currentWeekStart: schedule.weekStartDate,
     },
   };
@@ -218,6 +220,33 @@ function normalizeSettings(value, warnings) {
     warnings.push("Visible day start and end matched, so default visible hours were used.");
     settings.startTime = DEFAULT_SETTINGS.startTime;
     settings.endTime = DEFAULT_SETTINGS.endTime;
+  }
+
+  settings.longShiftWarningEnabled = settings.longShiftWarningEnabled !== false;
+  settings.lateNightWarningEnabled = settings.lateNightWarningEnabled !== false;
+
+  if (!isPositiveNumber(settings.maxConsecutiveWorkHours)) {
+    warnings.push("Invalid max consecutive work hours was replaced with 5.");
+    settings.maxConsecutiveWorkHours = DEFAULT_SETTINGS.maxConsecutiveWorkHours;
+  } else {
+    settings.maxConsecutiveWorkHours = Number(settings.maxConsecutiveWorkHours);
+  }
+
+  if (!isNonNegativeNumber(settings.requiredBreakMinutes)) {
+    warnings.push("Invalid required break length was replaced with 30 minutes.");
+    settings.requiredBreakMinutes = DEFAULT_SETTINGS.requiredBreakMinutes;
+  } else {
+    settings.requiredBreakMinutes = Number(settings.requiredBreakMinutes);
+  }
+
+  if (!isClockTime(settings.lateNightThreshold)) {
+    warnings.push("Invalid late-night threshold was replaced with 11:00 PM.");
+    settings.lateNightThreshold = DEFAULT_SETTINGS.lateNightThreshold;
+  }
+
+  if (!isClockTime(settings.earlyMorningThreshold)) {
+    warnings.push("Invalid early-morning threshold was replaced with 8:00 AM.");
+    settings.earlyMorningThreshold = DEFAULT_SETTINGS.earlyMorningThreshold;
   }
 
   return settings;
@@ -413,6 +442,29 @@ function isClockTime(value) {
   const minute = Number(match[2]);
 
   return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
+}
+
+function normalizeSettingsForExport(value) {
+  const raw = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+
+  return {
+    ...DEFAULT_SETTINGS,
+    ...raw,
+    shiftColors: {
+      ...DEFAULT_SETTINGS.shiftColors,
+      ...(raw.shiftColors && typeof raw.shiftColors === "object" && !Array.isArray(raw.shiftColors)
+        ? raw.shiftColors
+        : {}),
+    },
+  };
+}
+
+function isPositiveNumber(value) {
+  return Number.isFinite(Number(value)) && Number(value) > 0;
+}
+
+function isNonNegativeNumber(value) {
+  return Number.isFinite(Number(value)) && Number(value) >= 0;
 }
 
 function invalid(errors) {

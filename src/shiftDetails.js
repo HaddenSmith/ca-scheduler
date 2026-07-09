@@ -1,4 +1,9 @@
 import { buildWeekDates, formatTimeForDisplay } from "./dateUtils.js";
+import {
+  buildRovingNotes,
+  formatRoveSubtypesLabel,
+  normalizeRoveSubtypes,
+} from "./rovingUtils.js";
 
 let detailsElements;
 let activeResolve;
@@ -60,6 +65,10 @@ function createDetailsElements() {
 function populateDetails(schedule, shift) {
   const workerName = schedule.workers.find((worker) => worker.id === shift.workerId)?.name ?? "Unknown worker";
   const dateLabel = buildWeekDates(schedule.weekStartDate).find((date) => date.isoDate === shift.date);
+  const roveSubtypes = shift.shiftType === "Roving"
+    ? normalizeRoveSubtypes(shift.roveSubtypes ?? shift.roveSubtype ?? shift.roveType, shift.label)
+    : [];
+  const notes = shift.notes || (shift.shiftType === "Roving" ? buildRovingNotes(roveSubtypes) : "");
   const formattedDate = dateLabel
     ? `${dateLabel.dayName}, ${dateLabel.displayDate}`
     : shift.date;
@@ -73,11 +82,11 @@ function populateDetails(schedule, shift) {
     createDetailRow("Date", formattedDate),
     createDetailRow("Time", `${formatTimeForDisplay(shift.startTime)}-${formatTimeForDisplay(shift.endTime)}`),
     createDetailRow("Shift Type", shift.shiftType || shift.name),
-    ...(shift.roveType ? [createDetailRow("Rove Type", shift.roveType)] : []),
+    ...(roveSubtypes.length ? [createDetailRow("Rove Type(s)", formatRoveSubtypesLabel(roveSubtypes))] : []),
     createDetailRow("Label", shift.label),
     createDetailRow("Counts Toward Hours", shift.countsTowardHours ? "Yes" : "No"),
     ...(phoneCoverage ? [createDetailRow("Phone Coverage", phoneCoverage)] : []),
-    ...(shift.notes ? [createDetailRow("Notes", shift.notes)] : []),
+    ...(notes ? [createDetailRow("Notes", notes)] : []),
   );
 }
 

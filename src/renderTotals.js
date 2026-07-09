@@ -1,5 +1,9 @@
 import { buildWeekDates, formatWeekRange } from "./dateUtils.js";
-import { formatHours } from "./hourCalculations.js";
+import {
+  WEEKLY_TYPE_COLUMNS,
+  calculateWeeklyTypeTotals,
+  formatHours,
+} from "./hourCalculations.js";
 import { getWeeklyHourWarning } from "./validation.js";
 
 export function renderWeekSummary(container, schedule, dailyTotals, weeklyTotals) {
@@ -56,6 +60,7 @@ export function renderWeekSummary(container, schedule, dailyTotals, weeklyTotals
 
   table.append(body);
   wrapper.append(table);
+  wrapper.append(renderWeeklyTypeSummary(schedule));
   container.append(wrapper);
 }
 
@@ -74,4 +79,60 @@ function createCell(tagName, text) {
   const cell = document.createElement(tagName);
   cell.textContent = text;
   return cell;
+}
+
+function renderWeeklyTypeSummary(schedule) {
+  const typeTotals = calculateWeeklyTypeTotals(
+    schedule.workers,
+    schedule.shifts,
+    schedule.weekStartDate,
+  );
+  const section = document.createElement("section");
+  const title = document.createElement("div");
+  const table = document.createElement("table");
+  const head = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+  const body = document.createElement("tbody");
+
+  section.className = "type-summary-section";
+  title.className = "summary-title";
+  title.textContent = "Weekly Hours by Shift Type";
+  table.className = "totals-table type-totals-table";
+
+  headerRow.append(createCell("th", "Worker"));
+
+  for (const column of WEEKLY_TYPE_COLUMNS) {
+    headerRow.append(createCell("th", column));
+  }
+
+  head.append(headerRow);
+  table.append(head);
+
+  for (const worker of schedule.workers) {
+    const row = document.createElement("tr");
+    const workerTotals = typeTotals[worker.id] ?? {};
+
+    row.append(createCell("th", worker.name));
+
+    for (const column of WEEKLY_TYPE_COLUMNS) {
+      const cell = createCell("td", formatHours(workerTotals[column] ?? 0));
+
+      if (column === "Total Counted") {
+        cell.classList.add("week-total-cell");
+      }
+
+      if (column === "On Call / Backup On Call") {
+        cell.classList.add("coverage-total-cell");
+      }
+
+      row.append(cell);
+    }
+
+    body.append(row);
+  }
+
+  table.append(body);
+  section.append(title, table);
+
+  return section;
 }

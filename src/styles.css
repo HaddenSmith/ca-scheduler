@@ -252,6 +252,18 @@ textarea {
   font-weight: 700;
 }
 
+.type-summary-section {
+  margin-top: 18px;
+}
+
+.type-totals-table {
+  min-width: 980px;
+}
+
+.coverage-total-cell {
+  background: #fff7ed;
+}
+
 .totals-table {
   width: 100%;
   min-width: 760px;
@@ -495,6 +507,18 @@ textarea {
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.shift-note-marker {
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  z-index: 3;
+  color: rgb(17 26 32 / 78%);
+  font-size: 0.7rem;
+  font-weight: 950;
+  line-height: 1;
+  pointer-events: none;
 }
 
 .shift-label {
@@ -884,6 +908,7 @@ textarea {
   font-size: 0.92rem;
   line-height: 1.35;
   overflow-wrap: anywhere;
+  white-space: pre-line;
 }
 
 .shift-details-actions {
@@ -980,14 +1005,16 @@ textarea {
 }
 
 .weekday-picker,
-.copy-worker-grid {
+.copy-worker-grid,
+.rove-type-options {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
 .weekday-option,
-.copy-worker-option {
+.copy-worker-option,
+.rove-type-option {
   min-height: 30px;
   padding: 6px 8px;
   border: 1px solid var(--line);
@@ -1206,6 +1233,7 @@ textarea {
   .copy-actions-row,
   .weekday-picker,
   .copy-worker-grid,
+  .rove-type-options,
   .color-settings-grid {
     grid-template-columns: 1fr;
   }

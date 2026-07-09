@@ -1,14 +1,23 @@
 import {
-  ROVING_SUBTYPE_NOTES,
-  ROVING_SUBTYPES,
   SHIFT_TYPE_PRESETS,
   getDefaultShiftColor,
 } from "./model.js";
+import {
+  buildRovingNotes,
+  formatRoveSubtypesLabel,
+  getPrimaryRoveSubtype,
+  isRovingAutoLabel,
+  normalizeRoveSubtype,
+  normalizeRoveSubtypes,
+} from "./rovingUtils.js";
 
 export function createDefaultShift(schedule, defaults = {}) {
   const shiftType = defaults.shiftType ?? "Desk";
   const preset = getShiftTypePreset(shiftType, schedule.settings);
-  const roveType = defaults.roveType ?? (shiftType === "Roving" ? "R-3" : "");
+  const roveSubtypes = shiftType === "Roving"
+    ? normalizeRoveSubtypes(defaults.roveSubtypes ?? defaults.roveType ?? "R-3")
+    : [];
+  const roveType = getPrimaryRoveSubtype(roveSubtypes);
 
   return normalizeShift({
     id: createShiftId(),
@@ -18,6 +27,7 @@ export function createDefaultShift(schedule, defaults = {}) {
     endTime: defaults.endTime ?? (shiftType === "OFF" ? schedule.settings.endTime : "10:00"),
     shiftType,
     name: preset.name,
+    roveSubtypes,
     roveType,
     label: roveType || preset.label,
     notes: "",
@@ -87,15 +97,27 @@ export function deleteShift(schedule, shiftId) {
 export function normalizeShift(shift, settings = {}) {
   const shiftType = inferShiftType(shift);
   const preset = getShiftTypePreset(shiftType, settings);
-  const roveType = shiftType === "Roving" ? normalizeRoveType(shift.roveType || shift.label) : "";
-  const label = getNormalizedLabel(shift, shiftType, roveType, preset);
-  const notes = getNormalizedNotes(shift, shiftType, roveType);
+  let roveSubtypes = shiftType === "Roving"
+    ? normalizeRoveSubtypes(
+        shift.roveSubtypes ?? shift.roveSubtype ?? shift.roveType,
+        shift.label,
+      )
+    : [];
+
+  if (shiftType === "Roving" && roveSubtypes.length === 0) {
+    roveSubtypes = ["R-3"];
+  }
+
+  const roveType = getPrimaryRoveSubtype(roveSubtypes);
+  const label = getNormalizedLabel(shift, shiftType, roveSubtypes, preset);
+  const notes = getNormalizedNotes(shift, shiftType, roveSubtypes);
   const isOff = shiftType === "OFF";
   const isPhoneOnly = shiftType === "On Call" || shiftType === "Backup On Call";
 
   return {
     ...shift,
     shiftType,
+    roveSubtypes,
     roveType,
     name: shiftType === "Other" ? label || preset.name : preset.name,
     label,
@@ -290,40 +312,29 @@ export function shiftHasPhoneCoverage(shift) {
   );
 }
 
-function normalizeRoveType(value) {
-  if (!value) {
-    return "R-3";
-  }
-
-  const normalized = value.trim().toUpperCase().replace(/^R(\d+)$/, "R-$1");
-
-  if (normalized === "R3") {
-    return "R-3";
-  }
-
-  return ROVING_SUBTYPES.includes(normalized) ? normalized : "R-3";
-}
-
-function getNormalizedLabel(shift, shiftType, roveType, preset) {
+function getNormalizedLabel(shift, shiftType, roveSubtypes, preset) {
   if (shiftType === "OFF") {
     return "OFF";
   }
 
   if (shiftType === "Roving") {
-    return shift.label?.trim() || roveType;
+    const label = shift.label?.trim() ?? "";
+    const autoLabel = formatRoveSubtypesLabel(roveSubtypes) || preset.label;
+
+    return !label || isRovingAutoLabel(label) ? autoLabel : label;
   }
 
   return shift.label?.trim() || preset.label || shiftType;
 }
 
-function getNormalizedNotes(shift, shiftType, roveType) {
+function getNormalizedNotes(shift, shiftType, roveSubtypes) {
   const notes = shift.notes?.trim() ?? "";
 
-  if (notes || shiftType !== "Roving" || !roveType) {
+  if (notes || shiftType !== "Roving" || roveSubtypes.length === 0) {
     return notes;
   }
 
-  return ROVING_SUBTYPE_NOTES[roveType] ?? "";
+  return buildRovingNotes(roveSubtypes);
 }
 
 function isRovingLabel(value) {
@@ -331,7 +342,7 @@ function isRovingLabel(value) {
     return false;
   }
 
-  return value === "r3" || /^r-\d+$/.test(value) || value === "r-b" || value === "r-j" || value === "csa";
+  return normalizeRoveSubtype(value) !== "";
 }
 
 function createShiftId() {

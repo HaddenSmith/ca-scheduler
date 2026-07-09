@@ -2,6 +2,7 @@ import { buildWeekDates, formatTimeForDisplay } from "./dateUtils.js";
 import { attachShiftInteractions } from "./dragDrop.js";
 import { attachGridCreateInteractions } from "./gridCreate.js";
 import { renderDayTotals } from "./renderTotals.js";
+import { hasCustomShiftNotes } from "./rovingUtils.js";
 import { getOnCallAssignment } from "./scheduleState.js";
 import {
   buildTimeTicks,
@@ -294,6 +295,14 @@ function renderShiftBlock(layoutShift, settings, layout, callbacks) {
       shift.alsoBackupOnCall ? "BOC" : "",
     ].filter(Boolean).join(" / ");
     node.append(flags);
+  }
+
+  if (hasCustomShiftNotes(shift)) {
+    const noteMarker = document.createElement("span");
+    noteMarker.className = "shift-note-marker";
+    noteMarker.textContent = "*";
+    noteMarker.title = "Special notes";
+    node.append(noteMarker);
   }
 
   if (!shift.countsTowardHours) {

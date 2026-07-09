@@ -14,7 +14,8 @@
  * @property {string} endTime HH:mm, local schedule time. Values before startTime are treated as next-day times.
  * @property {string} name
  * @property {string=} shiftType
- * @property {string=} roveType
+ * @property {string[]=} roveSubtypes
+ * @property {string=} roveType Backward-compatible first roving subtype.
  * @property {string} label
  * @property {string} notes
  * @property {string} color
@@ -40,6 +41,12 @@
  * @property {string} endTime
  * @property {number} slotMinutes
  * @property {number} weekStartsOn 0 Sunday, 6 Saturday.
+ * @property {boolean} longShiftWarningEnabled
+ * @property {number} maxConsecutiveWorkHours
+ * @property {number} requiredBreakMinutes
+ * @property {boolean} lateNightWarningEnabled
+ * @property {string} lateNightThreshold
+ * @property {string} earlyMorningThreshold
  */
 
 export const DEFAULT_SETTINGS = {
@@ -47,6 +54,12 @@ export const DEFAULT_SETTINGS = {
   endTime: "01:00",
   slotMinutes: 15,
   weekStartsOn: 6,
+  longShiftWarningEnabled: true,
+  maxConsecutiveWorkHours: 5,
+  requiredBreakMinutes: 30,
+  lateNightWarningEnabled: true,
+  lateNightThreshold: "23:00",
+  earlyMorningThreshold: "08:00",
   shiftColors: {
     "Check In": "#91cf50",
     "Check Out": "#fed866",

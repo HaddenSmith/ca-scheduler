@@ -1,5 +1,5 @@
 import { formatTimeForDisplay, WEEKDAY_NAMES } from "./dateUtils.js";
-import { DEFAULT_SHIFT_COLORS } from "./model.js";
+import { DEFAULT_SETTINGS, DEFAULT_SHIFT_COLORS } from "./model.js";
 import { minutesToTimeValue, parseTimeInput, timeToMinutes } from "./timeUtils.js";
 
 const SLOT_OPTIONS = [15, 30, 60];
@@ -29,6 +29,7 @@ export function openSettingsPanel(schedule) {
   activeContext = {
     schedule,
     settings: {
+      ...DEFAULT_SETTINGS,
       ...schedule.settings,
       shiftColors: {
         ...DEFAULT_SHIFT_COLORS,
@@ -87,6 +88,44 @@ function createSettingsElements() {
         </div>
 
         <datalist id="settings-time-options"></datalist>
+
+        <fieldset class="settings-fieldset">
+          <legend>Warnings</legend>
+
+          <label class="checkbox-row">
+            <input name="longShiftWarningEnabled" type="checkbox" />
+            <span>Enable long-shift warning</span>
+          </label>
+
+          <div class="form-grid">
+            <label>
+              <span>Max Consecutive Work Hours</span>
+              <input name="maxConsecutiveWorkHours" type="number" min="1" max="24" step="0.25" />
+            </label>
+
+            <label>
+              <span>Required Break Minutes</span>
+              <input name="requiredBreakMinutes" type="number" min="0" max="240" step="5" />
+            </label>
+          </div>
+
+          <label class="checkbox-row">
+            <input name="lateNightWarningEnabled" type="checkbox" />
+            <span>Enable late-night/morning warning</span>
+          </label>
+
+          <div class="form-grid">
+            <label>
+              <span>Late-Night Threshold</span>
+              <input name="lateNightThreshold" type="text" list="settings-time-options" inputmode="numeric" />
+            </label>
+
+            <label>
+              <span>Early-Morning Threshold</span>
+              <input name="earlyMorningThreshold" type="text" list="settings-time-options" inputmode="numeric" />
+            </label>
+          </div>
+        </fieldset>
 
         <fieldset class="settings-fieldset">
           <legend>Default Shift Colors</legend>
@@ -158,14 +197,24 @@ function populateSettingsForm() {
   getField("weekStartsOn").value = String(settings.weekStartsOn);
   getField("startTime").value = formatTimeForDisplay(settings.startTime);
   getField("endTime").value = formatTimeForDisplay(settings.endTime);
+  getField("longShiftWarningEnabled").checked = settings.longShiftWarningEnabled !== false;
+  getField("maxConsecutiveWorkHours").value = String(settings.maxConsecutiveWorkHours ?? DEFAULT_SETTINGS.maxConsecutiveWorkHours);
+  getField("requiredBreakMinutes").value = String(settings.requiredBreakMinutes ?? DEFAULT_SETTINGS.requiredBreakMinutes);
+  getField("lateNightWarningEnabled").checked = settings.lateNightWarningEnabled !== false;
+  getField("lateNightThreshold").value = formatTimeForDisplay(settings.lateNightThreshold ?? DEFAULT_SETTINGS.lateNightThreshold);
+  getField("earlyMorningThreshold").value = formatTimeForDisplay(settings.earlyMorningThreshold ?? DEFAULT_SETTINGS.earlyMorningThreshold);
 }
 
 function readSettingsForm() {
   const errors = [];
   const startResult = parseTimeInput(getField("startTime").value);
   const endResult = parseTimeInput(getField("endTime").value);
+  const lateNightResult = parseTimeInput(getField("lateNightThreshold").value);
+  const earlyMorningResult = parseTimeInput(getField("earlyMorningThreshold").value);
   const slotMinutes = Number(getField("slotMinutes").value);
   const weekStartsOn = Number(getField("weekStartsOn").value);
+  const maxConsecutiveWorkHours = Number(getField("maxConsecutiveWorkHours").value);
+  const requiredBreakMinutes = Number(getField("requiredBreakMinutes").value);
 
   if (!SLOT_OPTIONS.includes(slotMinutes)) {
     errors.push("Choose a valid time increment.");
@@ -185,6 +234,22 @@ function readSettingsForm() {
 
   if (startResult.isValid && endResult.isValid && timeToMinutes(startResult.value) === timeToMinutes(endResult.value)) {
     errors.push("Visible day start and end cannot be the same time.");
+  }
+
+  if (!Number.isFinite(maxConsecutiveWorkHours) || maxConsecutiveWorkHours <= 0) {
+    errors.push("Max consecutive work hours must be greater than 0.");
+  }
+
+  if (!Number.isFinite(requiredBreakMinutes) || requiredBreakMinutes < 0) {
+    errors.push("Required break minutes must be 0 or greater.");
+  }
+
+  if (!lateNightResult.isValid) {
+    errors.push(`Late-night threshold: ${lateNightResult.error}`);
+  }
+
+  if (!earlyMorningResult.isValid) {
+    errors.push(`Early-morning threshold: ${earlyMorningResult.error}`);
   }
 
   const shiftColors = {
@@ -208,6 +273,20 @@ function readSettingsForm() {
       endTime: endResult.isValid ? endResult.value : activeContext.settings.endTime,
       slotMinutes,
       weekStartsOn,
+      longShiftWarningEnabled: getField("longShiftWarningEnabled").checked,
+      maxConsecutiveWorkHours: Number.isFinite(maxConsecutiveWorkHours)
+        ? maxConsecutiveWorkHours
+        : activeContext.settings.maxConsecutiveWorkHours,
+      requiredBreakMinutes: Number.isFinite(requiredBreakMinutes)
+        ? requiredBreakMinutes
+        : activeContext.settings.requiredBreakMinutes,
+      lateNightWarningEnabled: getField("lateNightWarningEnabled").checked,
+      lateNightThreshold: lateNightResult.isValid
+        ? lateNightResult.value
+        : activeContext.settings.lateNightThreshold,
+      earlyMorningThreshold: earlyMorningResult.isValid
+        ? earlyMorningResult.value
+        : activeContext.settings.earlyMorningThreshold,
       shiftColors,
     },
   };

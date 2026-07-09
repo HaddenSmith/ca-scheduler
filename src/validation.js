@@ -1,7 +1,10 @@
+import { addDays } from "./dateUtils.js";
+import { normalizeRoveSubtypes } from "./rovingUtils.js";
 import {
   isAllowedScheduleTime,
   minutesToTimeValue,
   normalizeScheduleTimeInput,
+  timeToMinutes,
   timeToDisplayMinutes,
 } from "./timeUtils.js";
 
@@ -44,6 +47,10 @@ export function validateShift(shift, schedule) {
 
   if (!shift.label?.trim() && !shift.shiftType?.trim() && !shift.name?.trim()) {
     errors.push("Label or shift type is required.");
+  }
+
+  if (shift.shiftType === "Roving" && normalizeRoveSubtypes(shift.roveSubtypes ?? shift.roveSubtype ?? shift.roveType, shift.label).length === 0) {
+    errors.push("Choose at least one roving subtype.");
   }
 
   if (startResult && !startResult.isValid) {
@@ -192,4 +199,168 @@ export function findPhoneCoverageOverlaps(shifts, settings) {
   }
 
   return overlaps;
+}
+
+export function findLongConsecutiveWorkWarnings(shifts, settings) {
+  if (settings.longShiftWarningEnabled === false) {
+    return [];
+  }
+
+  const maxMinutes = Number(settings.maxConsecutiveWorkHours ?? 5) * 60;
+  const requiredBreakMinutes = Number(settings.requiredBreakMinutes ?? 30);
+  const groups = new Map();
+  const warnings = [];
+
+  for (const shift of shifts) {
+    if (!isCountedWorkShift(shift, settings)) {
+      continue;
+    }
+
+    const key = `${shift.workerId}|${shift.date}`;
+    const group = groups.get(key) ?? [];
+    let start = timeToDisplayMinutes(shift.startTime, settings);
+    let end = timeToDisplayMinutes(shift.endTime, settings);
+
+    if (end <= start) {
+      end += 24 * 60;
+    }
+
+    group.push({ shift, start, end });
+    groups.set(key, group);
+  }
+
+  for (const group of groups.values()) {
+    const sorted = group.sort((a, b) => a.start - b.start);
+    let blockStart = null;
+    let blockEnd = null;
+    let blockShiftIds = [];
+    let blockWorkerId = "";
+    let blockDate = "";
+
+    for (const item of sorted) {
+      if (blockStart === null) {
+        blockStart = item.start;
+        blockEnd = item.end;
+        blockShiftIds = [item.shift.id];
+        blockWorkerId = item.shift.workerId;
+        blockDate = item.shift.date;
+        continue;
+      }
+
+      const breakMinutes = item.start - blockEnd;
+
+      if (breakMinutes < requiredBreakMinutes) {
+        blockEnd = Math.max(blockEnd, item.end);
+        blockShiftIds.push(item.shift.id);
+      } else {
+        addLongShiftWarning(warnings, {
+          blockDate,
+          blockEnd,
+          blockShiftIds,
+          blockStart,
+          blockWorkerId,
+          maxMinutes,
+        });
+        blockStart = item.start;
+        blockEnd = item.end;
+        blockShiftIds = [item.shift.id];
+        blockWorkerId = item.shift.workerId;
+        blockDate = item.shift.date;
+      }
+    }
+
+    addLongShiftWarning(warnings, {
+      blockDate,
+      blockEnd,
+      blockShiftIds,
+      blockStart,
+      blockWorkerId,
+      maxMinutes,
+    });
+  }
+
+  return warnings;
+}
+
+export function findLateNightMorningWarnings(shifts, settings) {
+  if (settings.lateNightWarningEnabled === false) {
+    return [];
+  }
+
+  const lateThreshold = timeToDisplayMinutes(settings.lateNightThreshold ?? "23:00", settings);
+  const earlyThreshold = timeToMinutes(settings.earlyMorningThreshold ?? "08:00");
+  const workingShifts = shifts.filter((shift) => isCountedWorkShift(shift, settings));
+  const lateShifts = [];
+  const earlyByWorkerDate = new Map();
+
+  for (const shift of workingShifts) {
+    const start = timeToDisplayMinutes(shift.startTime, settings);
+    let end = timeToDisplayMinutes(shift.endTime, settings);
+
+    if (end <= start) {
+      end += 24 * 60;
+    }
+
+    if (end > lateThreshold) {
+      lateShifts.push({ shift, end });
+    }
+
+    if (timeToMinutes(shift.startTime) < earlyThreshold) {
+      const key = `${shift.workerId}|${shift.date}`;
+      const group = earlyByWorkerDate.get(key) ?? [];
+      group.push({ shift, start: timeToMinutes(shift.startTime) });
+      earlyByWorkerDate.set(key, group);
+    }
+  }
+
+  const warnings = [];
+
+  for (const late of lateShifts) {
+    const nextDate = addDays(late.shift.date, 1);
+    const earlyGroup = earlyByWorkerDate.get(`${late.shift.workerId}|${nextDate}`) ?? [];
+
+    for (const early of earlyGroup) {
+      warnings.push({
+        workerId: late.shift.workerId,
+        lateDate: late.shift.date,
+        nextDate,
+        lateShiftId: late.shift.id,
+        earlyShiftId: early.shift.id,
+        lateEndTime: minutesToTimeValue(late.end),
+        earlyStartTime: early.shift.startTime,
+      });
+    }
+  }
+
+  return warnings;
+}
+
+function addLongShiftWarning(warnings, {
+  blockDate,
+  blockEnd,
+  blockShiftIds,
+  blockStart,
+  blockWorkerId,
+  maxMinutes,
+}) {
+  if (blockStart === null || blockEnd === null || blockEnd - blockStart <= maxMinutes) {
+    return;
+  }
+
+  warnings.push({
+    workerId: blockWorkerId,
+    date: blockDate,
+    shiftIds: blockShiftIds,
+    startTime: minutesToTimeValue(blockStart),
+    endTime: minutesToTimeValue(blockEnd),
+    hours: (blockEnd - blockStart) / 60,
+  });
+}
+
+function isCountedWorkShift(shift, settings) {
+  return (
+    shift.countsTowardHours &&
+    isAllowedScheduleTime(shift.startTime, settings) &&
+    isAllowedScheduleTime(shift.endTime, settings)
+  );
 }
