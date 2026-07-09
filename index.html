@@ -3,23 +3,20 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Conference Assistant Scheduler Prototype</title>
+    <title>Conference Assistant Scheduler</title>
     <link rel="stylesheet" href="./src/styles.css" />
   </head>
   <body>
     <main class="app-shell">
       <header class="app-header">
         <div>
-          <p class="eyebrow">Prototype</p>
+          <p class="eyebrow">Schedule Board</p>
           <h1>Conference Assistant Scheduler</h1>
           <p class="mode-badge" data-viewer-mode-indicator hidden>Viewer Mode</p>
         </div>
-        <div class="header-actions" aria-label="Future JSON actions">
-          <button type="button" class="import-json-button">Import JSON</button>
-          <button type="button" class="export-json-button">Export JSON</button>
-          <input id="json-import-input" type="file" accept="application/json,.json" hidden />
-        </div>
       </header>
+
+      <input id="json-import-input" type="file" accept="application/json,.json" hidden />
 
       <p id="file-status" class="file-status" aria-live="polite" hidden></p>
 
@@ -29,12 +26,12 @@
           <h2 id="week-range-label">July 4-10, 2026</h2>
         </div>
         <div class="toolbar-actions">
-          <div class="week-navigation" role="group" aria-label="Week navigation">
+          <div class="toolbar-group week-navigation" role="group" aria-label="Week navigation">
             <button type="button" class="secondary-button previous-week-button">Previous Week</button>
             <button type="button" class="secondary-button current-week-button">Today</button>
             <button type="button" class="secondary-button next-week-button">Next Week</button>
           </div>
-          <div class="segmented-control" role="group" aria-label="View layout">
+          <div class="toolbar-group segmented-control" role="group" aria-label="View layout">
             <button type="button" data-view-mode="detailed" aria-pressed="true">
               Detailed Day View
             </button>
@@ -42,12 +39,18 @@
               Compact Week View
             </button>
           </div>
-          <button type="button" class="secondary-button manage-workers-button">
-            Manage Workers
-          </button>
-          <button type="button" class="secondary-button settings-button">
-            Settings
-          </button>
+          <div class="toolbar-group header-actions" aria-label="Schedule data">
+            <button type="button" class="import-json-button">Import JSON</button>
+            <button type="button" class="export-json-button">Export JSON</button>
+          </div>
+          <div class="toolbar-group admin-actions" aria-label="Schedule setup">
+            <button type="button" class="secondary-button manage-workers-button">
+              Manage Workers
+            </button>
+            <button type="button" class="secondary-button settings-button">
+              Settings
+            </button>
+          </div>
         </div>
       </section>
 

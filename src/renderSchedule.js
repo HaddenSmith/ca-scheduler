@@ -93,6 +93,7 @@ function renderDaySection(schedule, date, dailyTotals, layout, callbacks) {
 
   const scrollFrame = document.createElement("div");
   scrollFrame.className = "schedule-scroll-frame";
+  scrollFrame.dataset.date = date.isoDate;
   scrollFrame.append(renderDayGrid(schedule, date.isoDate, layout, callbacks));
   section.append(scrollFrame);
 
@@ -340,12 +341,15 @@ function renderDeskCoverageBlock(layoutCoverage, settings, layout, callbacks) {
   label.textContent = coverage.label || "D";
   node.append(label);
 
-  if (layout.showShiftTime) {
-    const time = document.createElement("span");
-    time.className = "desk-coverage-time";
-    time.textContent = `${formatTimeForDisplay(coverage.startTime)}-${formatTimeForDisplay(coverage.endTime)}`;
-    node.append(time);
-  }
+  const time = document.createElement("span");
+  const startTime = document.createElement("span");
+  const endTime = document.createElement("span");
+
+  time.className = "desk-coverage-time";
+  startTime.textContent = formatDeskCoverageTime(coverage.startTime, layout);
+  endTime.textContent = formatDeskCoverageTime(coverage.endTime, layout);
+  time.append(startTime, endTime);
+  node.append(time);
 
   if (coverage.notes?.trim()) {
     const noteMarker = document.createElement("span");
@@ -370,6 +374,19 @@ function renderDeskCoverageBlock(layoutCoverage, settings, layout, callbacks) {
   }
 
   return node;
+}
+
+function formatDeskCoverageTime(time, layout) {
+  const display = formatTimeForDisplay(time);
+
+  if (layout.viewMode !== "compact") {
+    return display;
+  }
+
+  return display
+    .replace(":00", "")
+    .replace(" AM", "a")
+    .replace(" PM", "p");
 }
 
 function createOnCallTag(text) {

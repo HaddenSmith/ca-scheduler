@@ -1,5 +1,5 @@
 import { addDays, parseIsoDate } from "./dateUtils.js";
-import { copyShift } from "./scheduleState.js";
+import { copyDeskCoverage, copyShift } from "./scheduleState.js";
 
 export const MAX_REPEAT_OCCURRENCES = 100;
 
@@ -64,4 +64,22 @@ export function buildRepeatedShiftCopies(schedule, baseShift, repeatOptions) {
   return dates
     .filter((date) => date !== baseShift.date)
     .map((date) => copyShift(schedule, baseShift, { date }));
+}
+
+export function buildRepeatedDeskCoverageCopies(schedule, baseCoverage, repeatOptions) {
+  if (!repeatOptions || repeatOptions.frequency === "none") {
+    return [];
+  }
+
+  const { dates } = getRepeatOccurrenceDates({
+    frequency: repeatOptions.frequency,
+    maxOccurrences: repeatOptions.maxOccurrences,
+    startDate: baseCoverage.date,
+    untilDate: repeatOptions.untilDate,
+    weekdays: repeatOptions.weekdays,
+  });
+
+  return dates
+    .filter((date) => date !== baseCoverage.date)
+    .map((date) => copyDeskCoverage(schedule, baseCoverage, { date }));
 }

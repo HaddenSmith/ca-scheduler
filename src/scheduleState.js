@@ -116,6 +116,28 @@ export function addDeskCoverage(schedule, coverage) {
   };
 }
 
+export function addDeskCoverageItems(schedule, coverageItems) {
+  if (!coverageItems.length) {
+    return schedule;
+  }
+
+  return {
+    ...schedule,
+    deskCoverage: [
+      ...(schedule.deskCoverage ?? []),
+      ...coverageItems.map((coverage) => normalizeDeskCoverage(coverage, schedule.settings)),
+    ],
+  };
+}
+
+export function copyDeskCoverage(schedule, coverage, overrides = {}) {
+  return normalizeDeskCoverage({
+    ...coverage,
+    ...overrides,
+    id: createDeskCoverageId(),
+  }, schedule.settings);
+}
+
 export function updateDeskCoverage(schedule, coverage) {
   return {
     ...schedule,
@@ -292,6 +314,31 @@ export function renameWorker(schedule, workerId, name) {
 
       return { ...worker, name: trimmedName };
     }),
+  };
+}
+
+export function reorderWorker(schedule, workerId, targetWorkerId, position = "before") {
+  if (workerId === targetWorkerId) {
+    return schedule;
+  }
+
+  const workers = [...schedule.workers];
+  const fromIndex = workers.findIndex((worker) => worker.id === workerId);
+  const targetIndex = workers.findIndex((worker) => worker.id === targetWorkerId);
+
+  if (fromIndex === -1 || targetIndex === -1) {
+    return schedule;
+  }
+
+  const [movedWorker] = workers.splice(fromIndex, 1);
+  const updatedTargetIndex = workers.findIndex((worker) => worker.id === targetWorkerId);
+  const insertIndex = position === "after" ? updatedTargetIndex + 1 : updatedTargetIndex;
+
+  workers.splice(insertIndex, 0, movedWorker);
+
+  return {
+    ...schedule,
+    workers,
   };
 }
 

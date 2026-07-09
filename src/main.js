@@ -12,8 +12,10 @@ import { renderWeekSummary } from "./renderTotals.js";
 import { openDeskCoverageEditor } from "./deskCoverageEditor.js";
 import {
   addDeskCoverage,
+  addDeskCoverageItems,
   addShift,
   addShifts,
+  copyDeskCoverage,
   copyShift,
   createDefaultDeskCoverage,
   createDefaultShift,
@@ -27,7 +29,7 @@ import {
 } from "./scheduleState.js";
 import { downloadScheduleJson, parseScheduleJson } from "./jsonHelpers.js";
 import { openOnCallEditor } from "./onCallEditor.js";
-import { buildRepeatedShiftCopies } from "./repeatShifts.js";
+import { buildRepeatedDeskCoverageCopies, buildRepeatedShiftCopies } from "./repeatShifts.js";
 import { sampleSchedule } from "./sampleData.js";
 import { openSettingsPanel } from "./settingsPanel.js";
 import { openShiftDetails } from "./shiftDetails.js";
@@ -58,6 +60,8 @@ const exportJsonButton = document.querySelector(".export-json-button");
 const importJsonInput = document.querySelector("#json-import-input");
 const manageWorkersButton = document.querySelector(".manage-workers-button");
 const settingsButton = document.querySelector(".settings-button");
+const dataActionsGroup = document.querySelector(".header-actions");
+const adminActionsGroup = document.querySelector(".admin-actions");
 const previousWeekButton = document.querySelector(".previous-week-button");
 const currentWeekButton = document.querySelector(".current-week-button");
 const nextWeekButton = document.querySelector(".next-week-button");
@@ -67,7 +71,7 @@ const viewModeButtons = [...document.querySelectorAll("button[data-view-mode]")]
 for (const button of viewModeButtons) {
   button.addEventListener("click", () => {
     state.viewMode = button.dataset.viewMode;
-    renderApp();
+    renderApp({ preserveScroll: true });
   });
 }
 
@@ -103,7 +107,7 @@ manageWorkersButton.addEventListener("click", async () => {
 
   if (result.action === "save") {
     schedule = result.schedule;
-    renderApp();
+    renderApp({ preserveScroll: true });
   }
 });
 
@@ -120,7 +124,7 @@ settingsButton.addEventListener("click", async () => {
       settings: result.settings,
       weekStartDate: getWeekStartDate(schedule.weekStartDate, result.settings.weekStartsOn),
     };
-    renderApp();
+    renderApp({ preserveScroll: true });
   }
 });
 
@@ -129,7 +133,7 @@ previousWeekButton.addEventListener("click", () => {
     ...schedule,
     weekStartDate: addDays(schedule.weekStartDate, -7),
   };
-  renderApp();
+  renderApp({ preserveScroll: false });
 });
 
 nextWeekButton.addEventListener("click", () => {
@@ -137,7 +141,7 @@ nextWeekButton.addEventListener("click", () => {
     ...schedule,
     weekStartDate: addDays(schedule.weekStartDate, 7),
   };
-  renderApp();
+  renderApp({ preserveScroll: false });
 });
 
 currentWeekButton.addEventListener("click", () => {
@@ -145,10 +149,18 @@ currentWeekButton.addEventListener("click", () => {
     ...schedule,
     weekStartDate: getWeekStartDate(getTodayIsoDate(), schedule.settings.weekStartsOn),
   };
-  renderApp();
+  renderApp({
+    preserveScroll: false,
+    scrollToToday: state.viewMode === "detailed",
+  });
 });
 
-function renderApp() {
+function renderApp(options = {}) {
+  const {
+    preserveScroll = true,
+    scrollToToday = false,
+  } = options;
+  const scrollPositions = preserveScroll ? captureHorizontalScrollPositions() : new Map();
   const dailyTotals = calculateDailyTotals(
     schedule.workers,
     schedule.shifts,
@@ -170,6 +182,7 @@ function renderApp() {
     onAddShift: handleAddShift,
     onChangeDeskCoverage: handleChangeDeskCoverage,
     onChangeShift: handleChangeShift,
+    onDuplicateDeskCoverage: handleDuplicateDeskCoverage,
     onDuplicateShift: handleDuplicateShift,
     onEditDeskCoverage: handleEditDeskCoverage,
     onEditOnCall: handleEditOnCall,
@@ -180,6 +193,14 @@ function renderApp() {
     viewMode: state.viewMode,
   });
   renderWeekSummary(weekSummary, schedule, dailyTotals, weeklyTotals);
+
+  if (preserveScroll) {
+    restoreHorizontalScrollPositions(scrollPositions);
+  }
+
+  if (scrollToToday) {
+    scrollToTodaySection();
+  }
 }
 
 async function handleEditOnCall({ date }) {
@@ -194,7 +215,7 @@ async function handleEditOnCall({ date }) {
 
   if (result.action === "save") {
     schedule = updateOnCallAssignment(schedule, result.assignment);
-    renderApp();
+    renderApp({ preserveScroll: true });
   }
 }
 
@@ -217,7 +238,7 @@ async function handleAddShift(defaults = {}) {
       ...repeatedShifts,
       ...copiedShifts,
     ]);
-    renderApp();
+    renderApp({ preserveScroll: true });
   }
 }
 
@@ -234,8 +255,10 @@ async function handleAddDeskCoverage(defaults = {}) {
   });
 
   if (result.action === "save") {
-    schedule = addDeskCoverage(schedule, result.coverage);
-    renderApp();
+    schedule = addDeskCoverageItems(addDeskCoverage(schedule, result.coverage), [
+      ...buildRepeatedDeskCoverageCopies(schedule, result.coverage, result.repeat),
+    ]);
+    renderApp({ preserveScroll: true });
   }
 }
 
@@ -265,17 +288,17 @@ async function handleEditShift(shiftId) {
         ...buildWorkerCopies(result.shift, result.copy),
       ],
     );
-    renderApp();
+    renderApp({ preserveScroll: true });
   }
 
   if (result.action === "copy") {
     schedule = addShifts(schedule, buildWorkerCopies(result.shift, result.copy));
-    renderApp();
+    renderApp({ preserveScroll: true });
   }
 
   if (result.action === "delete") {
     schedule = deleteShift(schedule, result.shiftId);
-    renderApp();
+    renderApp({ preserveScroll: true });
   }
 }
 
@@ -298,12 +321,16 @@ async function handleEditDeskCoverage(coverageId) {
 
   if (result.action === "save") {
     schedule = updateDeskCoverage(schedule, result.coverage);
-    renderApp();
+    schedule = addDeskCoverageItems(
+      schedule,
+      buildRepeatedDeskCoverageCopies(schedule, result.coverage, result.repeat),
+    );
+    renderApp({ preserveScroll: true });
   }
 
   if (result.action === "delete") {
     schedule = deleteDeskCoverage(schedule, result.coverageId);
-    renderApp();
+    renderApp({ preserveScroll: true });
   }
 }
 
@@ -346,7 +373,7 @@ function handleChangeShift({ shiftId, changes }) {
     ...shift,
     ...changes,
   });
-  renderApp();
+  renderApp({ preserveScroll: true });
 }
 
 function handleChangeDeskCoverage({ coverageId, changes }) {
@@ -364,7 +391,22 @@ function handleChangeDeskCoverage({ coverageId, changes }) {
     ...coverage,
     ...changes,
   });
-  renderApp();
+  renderApp({ preserveScroll: true });
+}
+
+function handleDuplicateDeskCoverage({ coverageId, changes }) {
+  if (state.readOnly) {
+    return;
+  }
+
+  const coverage = (schedule.deskCoverage ?? []).find((item) => item.id === coverageId);
+
+  if (!coverage) {
+    return;
+  }
+
+  schedule = addDeskCoverage(schedule, copyDeskCoverage(schedule, coverage, changes));
+  renderApp({ preserveScroll: true });
 }
 
 function handleDuplicateShift({ shiftId, changes }) {
@@ -389,7 +431,7 @@ function handleDuplicateShift({ shiftId, changes }) {
   }
 
   schedule = addShift(schedule, copyShift(schedule, shift, changes));
-  renderApp();
+  renderApp({ preserveScroll: true });
 }
 
 function buildWorkerCopies(sourceShift, copyOptions) {
@@ -431,7 +473,7 @@ async function handleImportFile() {
     }
 
     schedule = result.schedule;
-    renderApp();
+    renderApp({ preserveScroll: false });
 
     const warnings = result.warnings?.length ? ` ${result.warnings.join(" ")}` : "";
     showFileStatus(`Imported ${file.name}.${warnings}`, "success");
@@ -455,6 +497,44 @@ function syncModeControls() {
     control.hidden = state.readOnly;
     control.disabled = state.readOnly;
   }
+
+  dataActionsGroup.hidden = state.readOnly;
+  adminActionsGroup.hidden = state.readOnly;
+}
+
+function captureHorizontalScrollPositions() {
+  const positions = new Map();
+
+  for (const section of scheduleBoard.querySelectorAll(".day-section[data-date]")) {
+    const scrollFrame = section.querySelector(".schedule-scroll-frame");
+
+    if (scrollFrame) {
+      positions.set(section.dataset.date, scrollFrame.scrollLeft);
+    }
+  }
+
+  return positions;
+}
+
+function restoreHorizontalScrollPositions(positions) {
+  for (const section of scheduleBoard.querySelectorAll(".day-section[data-date]")) {
+    const scrollFrame = section.querySelector(".schedule-scroll-frame");
+    const scrollLeft = positions.get(section.dataset.date);
+
+    if (scrollFrame && Number.isFinite(scrollLeft)) {
+      scrollFrame.scrollLeft = scrollLeft;
+    }
+  }
+}
+
+function scrollToTodaySection() {
+  const today = getTodayIsoDate();
+  const section = scheduleBoard.querySelector(`.day-section[data-date="${today}"]`);
+
+  section?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
 }
 
 function showFileStatus(message, tone = "info") {
@@ -591,4 +671,4 @@ function renderScheduleWarnings(container, currentSchedule, dailyTotals = {}, we
   }
 }
 
-renderApp();
+renderApp({ preserveScroll: false });

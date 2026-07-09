@@ -2,11 +2,13 @@ import {
   addWorker,
   removeWorker,
   renameWorker,
+  reorderWorker,
 } from "./scheduleState.js";
 
 let managerElements;
 let activeResolve;
 let draftSchedule;
+let draggedWorkerId = "";
 
 export function openWorkerManager(schedule) {
   managerElements = managerElements ?? createManagerElements();
@@ -41,6 +43,7 @@ function createManagerElements() {
 
       <div class="shift-editor-form">
         <div class="form-errors" aria-live="polite" hidden></div>
+        <p class="field-help">Drag workers to change schedule column order.</p>
         <div class="worker-list"></div>
 
         <form class="inline-add-form">
@@ -98,6 +101,49 @@ function renderWorkerRows() {
     const row = document.createElement("div");
     row.className = "worker-row";
     row.dataset.workerId = worker.id;
+    row.draggable = true;
+
+    row.addEventListener("dragstart", (event) => {
+      draggedWorkerId = worker.id;
+      row.classList.add("is-dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", worker.id);
+    });
+
+    row.addEventListener("dragover", (event) => {
+      if (!draggedWorkerId || draggedWorkerId === worker.id) {
+        return;
+      }
+
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      row.classList.toggle("is-drop-after", isAfterRowMidpoint(event, row));
+      row.classList.toggle("is-drop-before", !isAfterRowMidpoint(event, row));
+    });
+
+    row.addEventListener("dragleave", () => {
+      row.classList.remove("is-drop-before", "is-drop-after");
+    });
+
+    row.addEventListener("drop", (event) => {
+      event.preventDefault();
+      const position = isAfterRowMidpoint(event, row) ? "after" : "before";
+
+      draftSchedule = reorderWorker(draftSchedule, draggedWorkerId, worker.id, position);
+      draggedWorkerId = "";
+      renderWorkerRows();
+      clearMessage();
+    });
+
+    row.addEventListener("dragend", () => {
+      draggedWorkerId = "";
+      renderWorkerRows();
+    });
+
+    const dragHandle = document.createElement("span");
+    dragHandle.className = "worker-drag-handle";
+    dragHandle.textContent = "Drag";
+    dragHandle.title = "Drag to reorder";
 
     const label = document.createElement("label");
     const labelText = document.createElement("span");
@@ -128,9 +174,15 @@ function renderWorkerRows() {
       renderWorkerRows();
     });
 
-    row.append(label, removeButton);
+    row.append(dragHandle, label, removeButton);
     managerElements.list.append(row);
   }
+}
+
+function isAfterRowMidpoint(event, row) {
+  const rect = row.getBoundingClientRect();
+
+  return event.clientY > rect.top + rect.height / 2;
 }
 
 function closeManager(result) {
@@ -140,6 +192,7 @@ function closeManager(result) {
   const resolve = activeResolve;
   activeResolve = null;
   draftSchedule = null;
+  draggedWorkerId = "";
 
   if (resolve) {
     resolve(result);

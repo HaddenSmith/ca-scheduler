@@ -247,14 +247,20 @@ export function attachDeskCoverageInteractions(node, { callbacks, coverage, layo
       }
 
       if (pointerContext.mode === "drag" && pointerContext.preview) {
-        callbacks.onChangeDeskCoverage?.({
+        const payload = {
           coverageId: coverage.id,
           changes: {
             date: pointerContext.preview.date,
             startTime: pointerContext.preview.startTime,
             endTime: pointerContext.preview.endTime,
           },
-        });
+        };
+
+        if (pointerContext.duplicateMode) {
+          callbacks.onDuplicateDeskCoverage?.(payload);
+        } else {
+          callbacks.onChangeDeskCoverage?.(payload);
+        }
       }
     }
 
@@ -328,8 +334,11 @@ function createPointerContext({ callbacks, edge, event, layout, node, settings, 
 
 function updateDeskCoverageDragPreview(context, event) {
   const target = getDeskCoverageDropTarget(event.clientX, event.clientY);
+  const isDuplicate = event.shiftKey || event.ctrlKey;
 
   context.node.classList.add("is-dragging");
+  context.node.classList.toggle("is-duplicating", isDuplicate);
+  context.duplicateMode = isDuplicate;
   context.node.style.position = "fixed";
   context.node.style.left = `${event.clientX - context.pointerOffsetX}px`;
   context.node.style.top = `${event.clientY - context.pointerOffsetY}px`;
@@ -364,7 +373,7 @@ function updateDeskCoverageDragPreview(context, event) {
 
   updatePreviewLabel(
     event,
-    `Desk ${formatTimeForDisplay(startTime)}-${formatTimeForDisplay(endTime)}`,
+    `${isDuplicate ? "Copy " : ""}Desk ${formatTimeForDisplay(startTime)}-${formatTimeForDisplay(endTime)}`,
   );
 }
 
