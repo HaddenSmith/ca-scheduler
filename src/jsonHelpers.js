@@ -229,12 +229,20 @@ function normalizeSettings(value, warnings) {
   settings.longShiftWarningEnabled = settings.longShiftWarningEnabled !== false;
   settings.lateNightWarningEnabled = settings.lateNightWarningEnabled !== false;
   settings.weeklyMaxHoursWarningEnabled = settings.weeklyMaxHoursWarningEnabled !== false;
+  settings.dailyMaxHoursWarningEnabled = settings.dailyMaxHoursWarningEnabled !== false;
 
   if (!isPositiveNumber(settings.maxWeeklyHours)) {
     warnings.push("Invalid max weekly hours was replaced with 40.");
     settings.maxWeeklyHours = DEFAULT_SETTINGS.maxWeeklyHours;
   } else {
     settings.maxWeeklyHours = Number(settings.maxWeeklyHours);
+  }
+
+  if (!isPositiveNumber(settings.maxDailyHours)) {
+    warnings.push("Invalid max daily hours was replaced with 10.");
+    settings.maxDailyHours = DEFAULT_SETTINGS.maxDailyHours;
+  } else {
+    settings.maxDailyHours = Number(settings.maxDailyHours);
   }
 
   if (!isPositiveNumber(settings.maxConsecutiveWorkHours)) {

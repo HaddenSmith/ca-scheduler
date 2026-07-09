@@ -149,6 +149,137 @@ export function attachShiftInteractions(node, { callbacks, layout, settings, shi
   }
 }
 
+export function attachDeskCoverageInteractions(node, { callbacks, coverage, layout, settings }) {
+  let pointerContext = null;
+
+  node.addEventListener("click", (event) => {
+    if (Date.now() < suppressClickUntil) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    callbacks.onEditDeskCoverage?.(coverage.id);
+  });
+
+  node.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    const handle = event.target.closest("[data-resize-edge]");
+    const timeline = node.closest(".desk-coverage-timeline");
+
+    if (!timeline) {
+      return;
+    }
+
+    pointerContext = createPointerContext({
+      callbacks,
+      edge: handle?.dataset.resizeEdge ?? "",
+      event,
+      layout,
+      node,
+      settings,
+      shift: coverage,
+      timeline,
+    });
+
+    try {
+      node.setPointerCapture(event.pointerId);
+    } catch {
+      // Window-level listeners below still complete the interaction if capture is unavailable.
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerCancel);
+  });
+
+  function handlePointerMove(event) {
+    if (!pointerContext) {
+      return;
+    }
+
+    const movement = Math.hypot(
+      event.clientX - pointerContext.startX,
+      event.clientY - pointerContext.startY,
+    );
+
+    if (!pointerContext.isActive && movement < DRAG_THRESHOLD_PX) {
+      return;
+    }
+
+    event.preventDefault();
+    pointerContext.isActive = true;
+
+    if (pointerContext.mode === "resize") {
+      updateResizePreview(pointerContext, event);
+      return;
+    }
+
+    updateDeskCoverageDragPreview(pointerContext, event);
+  }
+
+  function handlePointerUp(event) {
+    if (!pointerContext) {
+      return;
+    }
+
+    try {
+      node.releasePointerCapture(event.pointerId);
+    } catch {
+      // Some browser automation paths release capture before the handler runs.
+    }
+
+    if (pointerContext.isActive) {
+      event.preventDefault();
+      suppressClickUntil = Date.now() + 300;
+
+      if (pointerContext.mode === "resize" && pointerContext.preview) {
+        callbacks.onChangeDeskCoverage?.({
+          coverageId: coverage.id,
+          changes: {
+            startTime: pointerContext.preview.startTime,
+            endTime: pointerContext.preview.endTime,
+          },
+        });
+      }
+
+      if (pointerContext.mode === "drag" && pointerContext.preview) {
+        callbacks.onChangeDeskCoverage?.({
+          coverageId: coverage.id,
+          changes: {
+            date: pointerContext.preview.date,
+            startTime: pointerContext.preview.startTime,
+            endTime: pointerContext.preview.endTime,
+          },
+        });
+      }
+    }
+
+    removeWindowListeners();
+    clearInteractionState(pointerContext);
+    pointerContext = null;
+  }
+
+  function handlePointerCancel() {
+    if (!pointerContext) {
+      return;
+    }
+
+    removeWindowListeners();
+    clearInteractionState(pointerContext);
+    pointerContext = null;
+  }
+
+  function removeWindowListeners() {
+    window.removeEventListener("pointermove", handlePointerMove);
+    window.removeEventListener("pointerup", handlePointerUp);
+    window.removeEventListener("pointercancel", handlePointerCancel);
+  }
+}
+
 function createPointerContext({ callbacks, edge, event, layout, node, settings, shift, timeline }) {
   const originalStart = timeToDisplayMinutes(shift.startTime, settings);
   let originalEnd = timeToDisplayMinutes(shift.endTime, settings);
@@ -193,6 +324,48 @@ function createPointerContext({ callbacks, edge, event, layout, node, settings, 
     timeline,
     timelineRect: timeline.getBoundingClientRect(),
   };
+}
+
+function updateDeskCoverageDragPreview(context, event) {
+  const target = getDeskCoverageDropTarget(event.clientX, event.clientY);
+
+  context.node.classList.add("is-dragging");
+  context.node.style.position = "fixed";
+  context.node.style.left = `${event.clientX - context.pointerOffsetX}px`;
+  context.node.style.top = `${event.clientY - context.pointerOffsetY}px`;
+  context.node.style.width = `${context.previewWidth}px`;
+  context.node.style.height = `${context.previewHeight}px`;
+  context.node.style.transform = "none";
+
+  setActiveDropTarget(target);
+
+  if (!target) {
+    context.preview = null;
+    updatePreviewLabel(event, "Drop inside a Desk Coverage column");
+    return;
+  }
+
+  const targetRect = target.getBoundingClientRect();
+  const proposedTop = event.clientY - targetRect.top - context.pointerOffsetY;
+  const proposedStart = context.boundaryStart + Math.round(
+    proposedTop / context.layout.slotHeight,
+  ) * context.settings.slotMinutes;
+  const latestStart = context.boundaryEnd - context.durationMinutes;
+  const nextStart = clamp(proposedStart, context.boundaryStart, latestStart);
+  const nextEnd = nextStart + context.durationMinutes;
+  const startTime = minutesToTimeValue(nextStart);
+  const endTime = minutesToTimeValue(nextEnd);
+
+  context.preview = {
+    date: target.dataset.date,
+    startTime,
+    endTime,
+  };
+
+  updatePreviewLabel(
+    event,
+    `Desk ${formatTimeForDisplay(startTime)}-${formatTimeForDisplay(endTime)}`,
+  );
 }
 
 function updateDragPreview(context, event) {
@@ -282,6 +455,12 @@ function clearInteractionState(context) {
   context.node.style.transform = context.originalStyle.transform;
   setActiveDropTarget(null);
   hidePreviewLabel();
+}
+
+function getDeskCoverageDropTarget(x, y) {
+  return document.elementsFromPoint(x, y).find((element) => {
+    return element.classList?.contains("desk-coverage-timeline");
+  }) ?? null;
 }
 
 function getDropTarget(x, y) {

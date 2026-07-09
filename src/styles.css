@@ -332,6 +332,13 @@ textarea {
   font-size: 1.15rem;
 }
 
+.day-heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .add-shift-button {
   min-height: 32px;
   padding: 0 10px;
@@ -344,13 +351,35 @@ textarea {
   white-space: nowrap;
 }
 
+.add-desk-coverage-button {
+  min-height: 32px;
+  padding: 0 9px;
+  border: 1px solid #687682;
+  border-radius: 6px;
+  color: #3d4b56;
+  background: #f0f3f5;
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .add-shift-button:hover {
   color: #fff;
   background: var(--accent);
 }
 
+.add-desk-coverage-button:hover {
+  color: #fff;
+  background: #687682;
+}
+
 .add-shift-button:focus-visible {
   outline: 3px solid rgb(15 107 120 / 30%);
+  outline-offset: 2px;
+}
+
+.add-desk-coverage-button:focus-visible {
+  outline: 3px solid rgb(90 104 117 / 28%);
   outline-offset: 2px;
 }
 
@@ -476,6 +505,21 @@ textarea {
 
 .desk-coverage-block:hover {
   filter: saturate(1.05) brightness(1.03);
+}
+
+.schedule-board.is-read-only .desk-coverage-block {
+  touch-action: auto;
+}
+
+.desk-coverage-block.is-dragging,
+.desk-coverage-block.is-resizing {
+  z-index: 1000;
+  opacity: 0.82;
+  box-shadow: 0 8px 18px rgb(12 21 29 / 28%);
+}
+
+.desk-coverage-block.is-dragging {
+  pointer-events: none;
 }
 
 .desk-coverage-label {
@@ -644,7 +688,10 @@ textarea {
 
 .shift-block:hover .shift-resize-handle,
 .shift-block:focus-visible .shift-resize-handle,
-.shift-block.is-resizing .shift-resize-handle {
+.shift-block.is-resizing .shift-resize-handle,
+.desk-coverage-block:hover .shift-resize-handle,
+.desk-coverage-block:focus-visible .shift-resize-handle,
+.desk-coverage-block.is-resizing .shift-resize-handle {
   opacity: 1;
 }
 
@@ -758,8 +805,18 @@ textarea {
   font-weight: 700;
 }
 
+.daily-total-cell.is-warning,
+.daily-total-pill.is-warning {
+  color: #fff;
+  background: var(--warning);
+}
+
 .worker-timeline.is-drop-target {
   box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.desk-coverage-timeline.is-drop-target {
+  box-shadow: inset 0 0 0 2px #687682;
 }
 
 .worker-timeline.is-create-target {
@@ -811,6 +868,10 @@ textarea {
 .schedule-board.is-compact .day-heading {
   min-height: 40px;
   padding: 7px 9px;
+}
+
+.schedule-board.is-compact .day-heading-actions {
+  gap: 4px;
 }
 
 .schedule-board.is-compact .day-heading h3 {
@@ -866,6 +927,13 @@ textarea {
 .schedule-board.is-compact .desk-coverage-block {
   padding: 1px;
   border-radius: 2px;
+}
+
+.schedule-board.is-compact .add-shift-button,
+.schedule-board.is-compact .add-desk-coverage-button {
+  min-height: 24px;
+  padding: 0 6px;
+  font-size: 0.58rem;
 }
 
 .schedule-board.is-compact .desk-coverage-label {

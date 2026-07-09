@@ -4,7 +4,7 @@ import {
   calculateWeeklyTypeTotals,
   formatHours,
 } from "./hourCalculations.js";
-import { getWeeklyHourWarning } from "./validation.js";
+import { getDailyHourWarning, getWeeklyHourWarning } from "./validation.js";
 
 export function renderWeekSummary(container, schedule, dailyTotals, weeklyTotals) {
   const weekDates = buildWeekDates(schedule.weekStartDate);
@@ -43,7 +43,18 @@ export function renderWeekSummary(container, schedule, dailyTotals, weeklyTotals
     row.append(createCell("th", worker.name));
 
     for (const date of weekDates) {
-      row.append(createCell("td", formatHours(dailyTotals[date.isoDate]?.[worker.id] ?? 0)));
+      const dailyHours = dailyTotals[date.isoDate]?.[worker.id] ?? 0;
+      const dailyWarning = getDailyHourWarning(dailyHours, schedule.settings);
+      const dayCell = createCell("td", formatHours(dailyHours));
+
+      dayCell.classList.add("daily-total-cell");
+
+      if (dailyWarning) {
+        dayCell.classList.add("is-warning");
+        dayCell.title = dailyWarning;
+      }
+
+      row.append(dayCell);
     }
 
     const weekCell = createCell("td", formatHours(weeklyHours));
@@ -64,13 +75,22 @@ export function renderWeekSummary(container, schedule, dailyTotals, weeklyTotals
   container.append(wrapper);
 }
 
-export function renderDayTotals(container, workers, date, dailyTotals) {
+export function renderDayTotals(container, workers, date, dailyTotals, settings = {}) {
   container.replaceChildren();
 
   for (const worker of workers) {
+    const dailyHours = dailyTotals[date]?.[worker.id] ?? 0;
+    const warning = getDailyHourWarning(dailyHours, settings);
     const pill = document.createElement("span");
+
     pill.className = "daily-total-pill";
-    pill.textContent = `${worker.name}: ${formatHours(dailyTotals[date]?.[worker.id] ?? 0)}`;
+    pill.textContent = `${worker.name}: ${formatHours(dailyHours)}`;
+
+    if (warning) {
+      pill.classList.add("is-warning");
+      pill.title = warning;
+    }
+
     container.append(pill);
   }
 }

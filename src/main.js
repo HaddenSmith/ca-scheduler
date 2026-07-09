@@ -33,6 +33,7 @@ import { openSettingsPanel } from "./settingsPanel.js";
 import { openShiftDetails } from "./shiftDetails.js";
 import { openShiftEditor } from "./shiftEditor.js";
 import {
+  findDailyMaxHourWarnings,
   findLateNightMorningWarnings,
   findLongConsecutiveWorkWarnings,
   findPhoneCoverageOverlaps,
@@ -163,10 +164,11 @@ function renderApp() {
     button.setAttribute("aria-pressed", String(button.dataset.viewMode === state.viewMode));
   }
 
-  renderScheduleWarnings(scheduleWarnings, schedule, weeklyTotals);
+  renderScheduleWarnings(scheduleWarnings, schedule, dailyTotals, weeklyTotals);
   renderScheduleBoard(scheduleBoard, schedule, dailyTotals, {
     onAddDeskCoverage: handleAddDeskCoverage,
     onAddShift: handleAddShift,
+    onChangeDeskCoverage: handleChangeDeskCoverage,
     onChangeShift: handleChangeShift,
     onDuplicateShift: handleDuplicateShift,
     onEditDeskCoverage: handleEditDeskCoverage,
@@ -347,6 +349,24 @@ function handleChangeShift({ shiftId, changes }) {
   renderApp();
 }
 
+function handleChangeDeskCoverage({ coverageId, changes }) {
+  if (state.readOnly) {
+    return;
+  }
+
+  const coverage = (schedule.deskCoverage ?? []).find((item) => item.id === coverageId);
+
+  if (!coverage) {
+    return;
+  }
+
+  schedule = updateDeskCoverage(schedule, {
+    ...coverage,
+    ...changes,
+  });
+  renderApp();
+}
+
 function handleDuplicateShift({ shiftId, changes }) {
   if (state.readOnly) {
     return;
@@ -449,7 +469,7 @@ function isViewerModeFromUrl() {
   return ["view", "viewer", "readonly", "read-only"].includes(mode);
 }
 
-function renderScheduleWarnings(container, currentSchedule, weeklyTotals = {}) {
+function renderScheduleWarnings(container, currentSchedule, dailyTotals = {}, weeklyTotals = {}) {
   const weekDates = buildWeekDates(currentSchedule.weekStartDate);
   const visibleDates = new Set(weekDates.map((date) => date.isoDate));
   const nextDateAfterWeek = addDays(weekDates.at(-1).isoDate, 1);
@@ -475,6 +495,12 @@ function renderScheduleWarnings(container, currentSchedule, weeklyTotals = {}) {
     weeklyTotals,
     currentSchedule.settings,
   );
+  const dailyMaxWarnings = findDailyMaxHourWarnings(
+    currentSchedule.workers,
+    dailyTotals,
+    weekDates,
+    currentSchedule.settings,
+  );
 
   container.replaceChildren();
   container.hidden =
@@ -482,7 +508,8 @@ function renderScheduleWarnings(container, currentSchedule, weeklyTotals = {}) {
     phoneOverlaps.length === 0 &&
     longWorkWarnings.length === 0 &&
     lateMorningWarnings.length === 0 &&
-    weeklyMaxWarnings.length === 0;
+    weeklyMaxWarnings.length === 0 &&
+    dailyMaxWarnings.length === 0;
 
   if (container.hidden) {
     return;
@@ -515,6 +542,16 @@ function renderScheduleWarnings(container, currentSchedule, weeklyTotals = {}) {
     const warning = document.createElement("p");
 
     warning.textContent = `${weeklyMaxWarnings.length} weekly hours warning${weeklyMaxWarnings.length === 1 ? "" : "s"}: ${visibleWeeklyWarnings.join("; ")}${weeklyMaxWarnings.length > visibleWeeklyWarnings.length ? "; more" : ""}.`;
+    container.append(warning);
+  }
+
+  if (dailyMaxWarnings.length > 0) {
+    const visibleDailyWarnings = dailyMaxWarnings.slice(0, 3).map((warning) => {
+      return `${warning.workerName} is scheduled for ${warning.hours.toFixed(2)} counted hours on ${dateLabels.get(warning.date) ?? warning.date}, which exceeds the ${warning.limit} hour daily limit`;
+    });
+    const warning = document.createElement("p");
+
+    warning.textContent = `${dailyMaxWarnings.length} daily hours warning${dailyMaxWarnings.length === 1 ? "" : "s"}: ${visibleDailyWarnings.join("; ")}${dailyMaxWarnings.length > visibleDailyWarnings.length ? "; more" : ""}.`;
     container.append(warning);
   }
 

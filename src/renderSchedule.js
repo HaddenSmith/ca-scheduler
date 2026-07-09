@@ -1,5 +1,5 @@
 import { buildWeekDates, formatTimeForDisplay } from "./dateUtils.js";
-import { attachShiftInteractions } from "./dragDrop.js";
+import { attachDeskCoverageInteractions, attachShiftInteractions } from "./dragDrop.js";
 import { attachGridCreateInteractions } from "./gridCreate.js";
 import { renderDayTotals } from "./renderTotals.js";
 import { hasCustomShiftNotes } from "./rovingUtils.js";
@@ -62,19 +62,32 @@ function renderDaySection(schedule, date, dailyTotals, layout, callbacks) {
   heading.append(title);
 
   const addButton = document.createElement("button");
+  const addDeskButton = document.createElement("button");
+  const actions = document.createElement("div");
+
+  actions.className = "day-heading-actions";
   addButton.className = "add-shift-button";
   addButton.type = "button";
   addButton.dataset.date = date.isoDate;
   addButton.setAttribute("aria-label", `Add shift for ${date.dayName}`);
   addButton.textContent = "Add Shift";
   addButton.addEventListener("click", () => callbacks.onAddShift?.({ date: date.isoDate }));
+  addDeskButton.className = "add-desk-coverage-button";
+  addDeskButton.type = "button";
+  addDeskButton.dataset.date = date.isoDate;
+  addDeskButton.setAttribute("aria-label", `Add desk coverage for ${date.dayName}`);
+  addDeskButton.textContent = "Add Desk";
+  addDeskButton.addEventListener("click", () => callbacks.onAddDeskCoverage?.({ date: date.isoDate }));
 
   if (callbacks.readOnly) {
     addButton.hidden = true;
     addButton.disabled = true;
+    addDeskButton.hidden = true;
+    addDeskButton.disabled = true;
   }
 
-  heading.append(addButton);
+  actions.append(addButton, addDeskButton);
+  heading.append(actions);
 
   section.append(heading);
 
@@ -86,7 +99,7 @@ function renderDaySection(schedule, date, dailyTotals, layout, callbacks) {
   if (layout.showDailyTotals) {
     const totals = document.createElement("div");
     totals.className = "daily-totals";
-    renderDayTotals(totals, schedule.workers, date.isoDate, dailyTotals);
+    renderDayTotals(totals, schedule.workers, date.isoDate, dailyTotals, schedule.settings);
     section.append(totals);
   }
 
@@ -342,13 +355,19 @@ function renderDeskCoverageBlock(layoutCoverage, settings, layout, callbacks) {
     node.append(noteMarker);
   }
 
-  node.addEventListener("click", () => {
-    if (callbacks.readOnly) {
+  if (callbacks.readOnly) {
+    node.addEventListener("click", () => {
       callbacks.onViewDeskCoverage?.(coverage.id);
-    } else {
-      callbacks.onEditDeskCoverage?.(coverage.id);
-    }
-  });
+    });
+  } else {
+    node.append(createResizeHandle("top"), createResizeHandle("bottom"));
+    attachDeskCoverageInteractions(node, {
+      callbacks,
+      coverage,
+      layout,
+      settings,
+    });
+  }
 
   return node;
 }

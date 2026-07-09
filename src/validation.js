@@ -9,6 +9,17 @@ import {
 } from "./timeUtils.js";
 
 export const WEEKLY_HOUR_LIMIT = 40;
+export const DAILY_HOUR_LIMIT = 10;
+
+export function getDailyHourWarning(totalHours, settings = {}) {
+  const limit = Number(settings.maxDailyHours ?? DAILY_HOUR_LIMIT);
+
+  if (settings.dailyMaxHoursWarningEnabled === false || totalHours <= limit) {
+    return null;
+  }
+
+  return `Over ${limit} hours`;
+}
 
 export function getWeeklyHourWarning(totalHours, settings = {}) {
   const limit = Number(settings.maxWeeklyHours ?? WEEKLY_HOUR_LIMIT);
@@ -18,6 +29,36 @@ export function getWeeklyHourWarning(totalHours, settings = {}) {
   }
 
   return `Over ${limit} hours`;
+}
+
+export function findDailyMaxHourWarnings(workers, dailyTotals, weekDates, settings = {}) {
+  const limit = Number(settings.maxDailyHours ?? DAILY_HOUR_LIMIT);
+
+  if (settings.dailyMaxHoursWarningEnabled === false) {
+    return [];
+  }
+
+  const warnings = [];
+
+  for (const date of weekDates) {
+    const totalsForDate = dailyTotals[date.isoDate] ?? {};
+
+    for (const worker of workers) {
+      const hours = totalsForDate[worker.id] ?? 0;
+
+      if (hours > limit) {
+        warnings.push({
+          workerId: worker.id,
+          workerName: worker.name,
+          date: date.isoDate,
+          hours,
+          limit,
+        });
+      }
+    }
+  }
+
+  return warnings;
 }
 
 export function findWeeklyMaxHourWarnings(workers, weeklyTotals, settings = {}) {

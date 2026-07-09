@@ -60,6 +60,8 @@
  * @property {string} earlyMorningThreshold
  * @property {boolean} weeklyMaxHoursWarningEnabled
  * @property {number} maxWeeklyHours
+ * @property {boolean} dailyMaxHoursWarningEnabled
+ * @property {number} maxDailyHours
  */
 
 export const DEFAULT_SETTINGS = {
@@ -75,6 +77,8 @@ export const DEFAULT_SETTINGS = {
   earlyMorningThreshold: "08:00",
   weeklyMaxHoursWarningEnabled: true,
   maxWeeklyHours: 40,
+  dailyMaxHoursWarningEnabled: true,
+  maxDailyHours: 10,
   shiftColors: {
     "Check In": "#91cf50",
     "Check Out": "#fed866",

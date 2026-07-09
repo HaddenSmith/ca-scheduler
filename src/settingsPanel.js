@@ -105,6 +105,18 @@ function createSettingsElements() {
           </div>
 
           <label class="checkbox-row">
+            <input name="dailyMaxHoursWarningEnabled" type="checkbox" />
+            <span>Enable daily max hours warning</span>
+          </label>
+
+          <div class="form-grid">
+            <label>
+              <span>Max Daily Hours per Worker</span>
+              <input name="maxDailyHours" type="number" min="1" max="24" step="0.25" />
+            </label>
+          </div>
+
+          <label class="checkbox-row">
             <input name="longShiftWarningEnabled" type="checkbox" />
             <span>Enable long-shift warning</span>
           </label>
@@ -211,6 +223,8 @@ function populateSettingsForm() {
   getField("endTime").value = formatTimeForDisplay(settings.endTime);
   getField("weeklyMaxHoursWarningEnabled").checked = settings.weeklyMaxHoursWarningEnabled !== false;
   getField("maxWeeklyHours").value = String(settings.maxWeeklyHours ?? DEFAULT_SETTINGS.maxWeeklyHours);
+  getField("dailyMaxHoursWarningEnabled").checked = settings.dailyMaxHoursWarningEnabled !== false;
+  getField("maxDailyHours").value = String(settings.maxDailyHours ?? DEFAULT_SETTINGS.maxDailyHours);
   getField("longShiftWarningEnabled").checked = settings.longShiftWarningEnabled !== false;
   getField("maxConsecutiveWorkHours").value = String(settings.maxConsecutiveWorkHours ?? DEFAULT_SETTINGS.maxConsecutiveWorkHours);
   getField("requiredBreakMinutes").value = String(settings.requiredBreakMinutes ?? DEFAULT_SETTINGS.requiredBreakMinutes);
@@ -228,6 +242,7 @@ function readSettingsForm() {
   const slotMinutes = Number(getField("slotMinutes").value);
   const weekStartsOn = Number(getField("weekStartsOn").value);
   const maxWeeklyHours = Number(getField("maxWeeklyHours").value);
+  const maxDailyHours = Number(getField("maxDailyHours").value);
   const maxConsecutiveWorkHours = Number(getField("maxConsecutiveWorkHours").value);
   const requiredBreakMinutes = Number(getField("requiredBreakMinutes").value);
 
@@ -253,6 +268,10 @@ function readSettingsForm() {
 
   if (!Number.isFinite(maxWeeklyHours) || maxWeeklyHours <= 0) {
     errors.push("Max weekly hours must be greater than 0.");
+  }
+
+  if (!Number.isFinite(maxDailyHours) || maxDailyHours <= 0) {
+    errors.push("Max daily hours must be greater than 0.");
   }
 
   if (!Number.isFinite(maxConsecutiveWorkHours) || maxConsecutiveWorkHours <= 0) {
@@ -296,6 +315,10 @@ function readSettingsForm() {
       maxWeeklyHours: Number.isFinite(maxWeeklyHours)
         ? maxWeeklyHours
         : activeContext.settings.maxWeeklyHours,
+      dailyMaxHoursWarningEnabled: getField("dailyMaxHoursWarningEnabled").checked,
+      maxDailyHours: Number.isFinite(maxDailyHours)
+        ? maxDailyHours
+        : activeContext.settings.maxDailyHours,
       longShiftWarningEnabled: getField("longShiftWarningEnabled").checked,
       maxConsecutiveWorkHours: Number.isFinite(maxConsecutiveWorkHours)
         ? maxConsecutiveWorkHours
