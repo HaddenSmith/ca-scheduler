@@ -1,8 +1,8 @@
 # Conference Assistant Scheduler
 
-A local web app for building Conference Assistant schedules in a Saturday-Friday work week. The app is designed to replace a complicated spreadsheet workflow with a visual schedule board, editable worker columns, hour summaries, warnings, and JSON import/export.
+A static web app for building Conference Assistant schedules in a Saturday-Friday work week. The app is designed to replace a complicated spreadsheet workflow with a visual schedule board, editable worker columns, hour summaries, warnings, local browser autosave, and JSON import/export.
 
-This is still local-only. There is no backend, Box sync, database, authentication, real-time collaboration, or automatic file locking yet.
+This is still single-user/local-browser software. There is no backend, Box sync, database, authentication, real-time collaboration, or automatic file locking yet.
 
 ## Current Features
 
@@ -31,6 +31,9 @@ This is still local-only. There is no backend, Box sync, database, authenticatio
 - Daily totals, weekly totals, and weekly hours-by-type summary.
 - Non-blocking warnings for overlap, phone coverage overlap, long consecutive work, late-night into early-morning, weekly max hours, and daily max hours.
 - JSON export/import for restoring the full local schedule state.
+- Single-computer localStorage autosave in edit mode.
+- Clear Local Autosave and Load Default Schedule controls.
+- Static default schedule loading from `data/default-schedule.json`.
 - Viewer mode with `index.html?mode=view` or `viewer.html`.
 
 ## Edit Mode vs Viewer Mode
@@ -59,6 +62,28 @@ Import JSON validates the selected file before replacing the current in-memory s
 
 The JSON file represents the whole schedule, not only the visible week.
 
+## Local Autosave
+
+Edit mode autosaves the current schedule to this browser's `localStorage`. On the same computer and browser, reopening the app should restore the local autosave before loading the default schedule.
+
+Local autosave is not a shared backup. It does not sync across computers, browsers, GitHub Pages, Box, or coworkers. Export JSON whenever you need to back up, share, or move the schedule.
+
+Use **Clear Local Autosave** to remove the saved browser copy. Use **Load Default Schedule** to replace the current open schedule with `data/default-schedule.json`.
+
+If the app says “Unsaved changes - export JSON for backup,” local autosave may already have saved the browser copy, but the schedule has not been exported as a portable file since the last edit.
+
+## Default Schedule
+
+The static default file lives at:
+
+```text
+data/default-schedule.json
+```
+
+On first load, the app tries local autosave first. If there is no local autosave, it fetches this default JSON file. If the file is missing or invalid, the app falls back to `src/sampleData.js`.
+
+The default schedule file may contain real worker names or shift details. Do not publish it publicly on GitHub Pages unless your workplace has approved sharing that information.
+
 ## Local Usage
 
 Because the app uses JavaScript modules, serve the folder with any simple local static server. For example:
@@ -74,11 +99,25 @@ Then open:
 http://127.0.0.1:5177/
 ```
 
+## GitHub Pages Usage
+
+This app is static and should work on GitHub Pages as long as the repository publishes the app folder with these relative paths intact:
+
+- `index.html`
+- `viewer.html`
+- `src/...`
+- `data/default-schedule.json`
+
+To share a schedule today, export JSON and upload or send the exported file. To continue on the same computer/browser later, local autosave should restore the last browser copy. To start fresh, clear local autosave or load the default schedule.
+
 ## File Map
 
 - `index.html`: App shell.
 - `viewer.html`: Lightweight viewer entry point.
+- `data/default-schedule.json`: Static default schedule used when no local autosave exists.
+- `data/README.md`: Notes about default schedule data.
 - `src/main.js`: App startup, state wiring, render flow, import/export, and top-level handlers.
+- `src/localStorageAutosave.js`: Single-browser local autosave helpers.
 - `src/model.js`: Data shapes, settings, shift presets, and color defaults.
 - `src/sampleData.js`: Sample workers and shifts.
 - `src/scheduleState.js`: Create, copy, update, delete, normalize, and reorder helpers.
@@ -106,6 +145,7 @@ http://127.0.0.1:5177/
 - No login or authentication.
 - No real-time collaboration.
 - No automatic locking or conflict prevention.
+- No cross-computer sync. Local autosave stays in one browser on one computer.
 - No Excel or PDF export yet.
 
 Backend, Box storage, locking, and multi-user workflow should be added in later milestones after the local JSON workflow is stable.

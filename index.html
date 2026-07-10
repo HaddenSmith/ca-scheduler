@@ -42,6 +42,7 @@
           <div class="toolbar-group header-actions" aria-label="Schedule data">
             <button type="button" class="import-json-button">Import JSON</button>
             <button type="button" class="export-json-button">Export JSON</button>
+            <button type="button" class="load-default-button">Load Default Schedule</button>
           </div>
           <div class="toolbar-group admin-actions" aria-label="Schedule setup">
             <button type="button" class="secondary-button manage-workers-button">
@@ -50,8 +51,23 @@
             <button type="button" class="secondary-button settings-button">
               Settings
             </button>
+            <button type="button" class="secondary-button clear-autosave-button">
+              Clear Local Autosave
+            </button>
           </div>
         </div>
+      </section>
+
+      <section class="local-save-panel" aria-live="polite">
+        <div>
+          <p id="autosave-status" class="autosave-status">Loading schedule...</p>
+          <p id="export-reminder" class="export-reminder">
+            Changes are saved only in this browser on this computer until you export JSON.
+          </p>
+        </div>
+        <p class="local-save-note">
+          Export JSON to back up or share the schedule. Local autosave is not shared across computers or browsers.
+        </p>
       </section>
 
       <section id="schedule-warnings" class="warnings-panel" aria-live="polite" hidden></section>

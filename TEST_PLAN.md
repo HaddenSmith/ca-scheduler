@@ -7,11 +7,29 @@ Use this checklist before moving toward backend, Box, or server work.
 - Load edit mode at `/` and confirm there are no console errors.
 - Load viewer mode at `/index.html?mode=view` and confirm editing controls are hidden.
 - Load `viewer.html` and confirm it opens viewer mode.
+- Confirm GitHub Pages/static paths work with relative `index.html`, `viewer.html`, `src/...`, and `data/default-schedule.json`.
 - Switch between Detailed Day View and Compact Week View.
 - Use Previous Week, Next Week, and Today.
 - In Detailed Day View, click Today and confirm the page scrolls to today's day section.
 - Open Settings, change a harmless setting, save, and confirm the schedule re-renders.
 - Confirm the toolbar remains compact on desktop and stacks cleanly on narrow screens.
+- Confirm Detailed Day View is usable with around 12 workers plus Desk Coverage on a normal desktop screen.
+- Confirm too-small screens scroll horizontally instead of making worker columns unreadable.
+
+## Local Autosave and Default Data
+
+- Open the app in edit mode with empty localStorage and confirm `data/default-schedule.json` loads.
+- Confirm the default schedule has 12 workers and realistic multi-week schedule data.
+- Make a small edit and confirm the local save status updates.
+- Refresh the page and confirm the edit restores from local autosave.
+- Confirm the app shows “Unsaved changes - export JSON for backup” after an edit.
+- Export JSON and confirm the unsaved/export reminder clears or softens.
+- Import valid JSON and confirm the unsaved/export reminder clears until the next edit.
+- Try refreshing/closing after an unexported edit and confirm the browser warns before leaving.
+- Use Clear Local Autosave, confirm the warning prompt appears, and confirm the current open schedule stays visible.
+- Refresh after clearing local autosave and confirm the default schedule loads again.
+- Use Load Default Schedule, confirm the warning prompt appears, and confirm current in-memory/local schedule is replaced.
+- Temporarily remove or rename `data/default-schedule.json` during local testing and confirm sample data loads gracefully.
 
 ## JSON
 
@@ -21,6 +39,7 @@ Use this checklist before moving toward backend, Box, or server work.
 - Import older JSON without newer fields and confirm defaults are filled safely.
 - Confirm `deskCoverage`, `roveSubtypes`, warning settings, and worker order survive JSON round trip.
 - Confirm viewer mode still works after importing JSON in edit mode.
+- Confirm local autosave restores the imported schedule after refresh.
 
 ## Normal Shifts
 
@@ -41,6 +60,8 @@ Use this checklist before moving toward backend, Box, or server work.
 - Confirm custom labels are preserved.
 - Confirm changing shift type updates default labels only when appropriate.
 - Confirm custom note markers appear only for custom notes.
+- Confirm On Call and Backup On Call shift types hide the extra Also On Call / Also Backup On Call checkboxes.
+- Confirm normal working shift types still show both phone coverage checkboxes.
 
 ## Roving
 
@@ -77,6 +98,7 @@ Use this checklist before moving toward backend, Box, or server work.
 - Try removing a worker with shifts and confirm removal is blocked.
 - Drag workers in Manage Workers to reorder them.
 - Save and confirm schedule columns, totals, JSON export/import, and viewer mode use the new order.
+- Confirm 12 workers plus Desk Coverage remain readable in Detailed Day View.
 
 ## Desk Coverage
 

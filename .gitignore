@@ -1,6 +1,8 @@
 # Local/exported schedule data
 exports/
-data/
+data/*
+!data/README.md
+!data/default-schedule.json
 *.local.json
 *.lock.json
 

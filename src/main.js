@@ -28,6 +28,12 @@ import {
   updateOnCallAssignment,
 } from "./scheduleState.js";
 import { downloadScheduleJson, parseScheduleJson } from "./jsonHelpers.js";
+import {
+  clearLocalAutosave,
+  loadLocalAutosave,
+  markLocalAutosaveExported,
+  saveLocalAutosave,
+} from "./localStorageAutosave.js";
 import { openOnCallEditor } from "./onCallEditor.js";
 import { buildRepeatedDeskCoverageCopies, buildRepeatedShiftCopies } from "./repeatShifts.js";
 import { sampleSchedule } from "./sampleData.js";
@@ -44,9 +50,17 @@ import {
 } from "./validation.js";
 import { openWorkerManager } from "./workerManager.js";
 
+const DEFAULT_SCHEDULE_URL = "./data/default-schedule.json";
+
 let schedule = structuredClone(sampleSchedule);
 const state = {
+  hasLocalAutosave: false,
+  hasUnexportedChanges: false,
+  localSaveError: "",
+  localSavedAt: "",
+  localStorageAvailable: true,
   readOnly: isViewerModeFromUrl(),
+  startupSource: "sample",
   viewMode: "detailed",
 };
 
@@ -57,9 +71,13 @@ const weekRangeLabel = document.querySelector("#week-range-label");
 const fileStatus = document.querySelector("#file-status");
 const importJsonButton = document.querySelector(".import-json-button");
 const exportJsonButton = document.querySelector(".export-json-button");
+const loadDefaultButton = document.querySelector(".load-default-button");
 const importJsonInput = document.querySelector("#json-import-input");
 const manageWorkersButton = document.querySelector(".manage-workers-button");
 const settingsButton = document.querySelector(".settings-button");
+const clearAutosaveButton = document.querySelector(".clear-autosave-button");
+const autosaveStatus = document.querySelector("#autosave-status");
+const exportReminder = document.querySelector("#export-reminder");
 const dataActionsGroup = document.querySelector(".header-actions");
 const adminActionsGroup = document.querySelector(".admin-actions");
 const previousWeekButton = document.querySelector(".previous-week-button");
@@ -90,6 +108,7 @@ exportJsonButton.addEventListener("click", () => {
 
   try {
     const fileName = downloadScheduleJson(schedule);
+    markScheduleExported();
     showFileStatus(`Exported ${fileName}.`, "success");
   } catch {
     showFileStatus("Export failed. Please try again.", "error");
@@ -97,6 +116,30 @@ exportJsonButton.addEventListener("click", () => {
 });
 
 importJsonInput.addEventListener("change", handleImportFile);
+
+loadDefaultButton.addEventListener("click", handleLoadDefaultSchedule);
+
+clearAutosaveButton.addEventListener("click", () => {
+  if (state.readOnly) {
+    return;
+  }
+
+  const confirmed = globalThis.confirm(
+    "Clear the locally autosaved browser copy? The current open schedule will stay on screen until you refresh or load another file.",
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  clearLocalAutosave();
+  state.hasLocalAutosave = false;
+  state.hasUnexportedChanges = true;
+  state.localSavedAt = "";
+  state.localSaveError = "";
+  updatePersistenceStatus();
+  showFileStatus("Local autosave cleared. Export JSON if you need a backup of the current schedule.", "info");
+});
 
 manageWorkersButton.addEventListener("click", async () => {
   if (state.readOnly) {
@@ -106,8 +149,7 @@ manageWorkersButton.addEventListener("click", async () => {
   const result = await openWorkerManager(schedule);
 
   if (result.action === "save") {
-    schedule = result.schedule;
-    renderApp({ preserveScroll: true });
+    commitScheduleChange(result.schedule, { preserveScroll: true });
   }
 });
 
@@ -119,41 +161,163 @@ settingsButton.addEventListener("click", async () => {
   const result = await openSettingsPanel(schedule);
 
   if (result.action === "save") {
-    schedule = {
+    commitScheduleChange({
       ...schedule,
       settings: result.settings,
       weekStartDate: getWeekStartDate(schedule.weekStartDate, result.settings.weekStartsOn),
-    };
-    renderApp({ preserveScroll: true });
+    }, { preserveScroll: true });
   }
 });
 
 previousWeekButton.addEventListener("click", () => {
-  schedule = {
+  commitScheduleState({
     ...schedule,
     weekStartDate: addDays(schedule.weekStartDate, -7),
-  };
-  renderApp({ preserveScroll: false });
+  }, { preserveScroll: false });
 });
 
 nextWeekButton.addEventListener("click", () => {
-  schedule = {
+  commitScheduleState({
     ...schedule,
     weekStartDate: addDays(schedule.weekStartDate, 7),
-  };
-  renderApp({ preserveScroll: false });
+  }, { preserveScroll: false });
 });
 
 currentWeekButton.addEventListener("click", () => {
-  schedule = {
+  commitScheduleState({
     ...schedule,
     weekStartDate: getWeekStartDate(getTodayIsoDate(), schedule.settings.weekStartsOn),
-  };
-  renderApp({
+  }, {
     preserveScroll: false,
     scrollToToday: state.viewMode === "detailed",
   });
 });
+
+window.addEventListener("beforeunload", (event) => {
+  if (!state.readOnly && state.hasUnexportedChanges) {
+    event.preventDefault();
+    event.returnValue = "";
+  }
+});
+
+async function initializeApp() {
+  const startup = await loadStartupSchedule();
+
+  schedule = startup.schedule;
+  state.hasLocalAutosave = startup.hasLocalAutosave;
+  state.hasUnexportedChanges = startup.hasUnexportedChanges;
+  state.localSaveError = startup.localSaveError;
+  state.localSavedAt = startup.localSavedAt;
+  state.localStorageAvailable = startup.localStorageAvailable;
+  state.startupSource = startup.source;
+
+  if (!state.readOnly && !state.hasLocalAutosave && startup.shouldSaveLocalCopy) {
+    saveCurrentScheduleLocally({ dirty: false });
+  }
+
+  renderApp({ preserveScroll: false });
+
+  if (startup.statusMessage) {
+    showFileStatus(startup.statusMessage, startup.statusTone);
+  }
+}
+
+async function loadStartupSchedule() {
+  const local = loadLocalAutosave();
+
+  if (local.found && local.isValid) {
+    return {
+      hasLocalAutosave: true,
+      hasUnexportedChanges: Boolean(local.dirty),
+      localSaveError: "",
+      localSavedAt: local.savedAt,
+      localStorageAvailable: local.isAvailable,
+      schedule: local.schedule,
+      shouldSaveLocalCopy: false,
+      source: "local",
+      statusMessage: local.warnings?.length
+        ? `Loaded local autosave. ${local.warnings.join(" ")}`
+        : "",
+      statusTone: "info",
+    };
+  }
+
+  const localWarning = local.found && !local.isValid
+    ? `Local autosave could not be loaded: ${local.errors.slice(0, 3).join(" ")} `
+    : "";
+
+  try {
+    const defaultResult = await loadDefaultScheduleFile();
+
+    return {
+      hasLocalAutosave: false,
+      hasUnexportedChanges: false,
+      localSaveError: localWarning.trim(),
+      localSavedAt: "",
+      localStorageAvailable: local.isAvailable !== false,
+      schedule: defaultResult.schedule,
+      shouldSaveLocalCopy: true,
+      source: "default",
+      statusMessage: `${localWarning}Loaded default schedule.`,
+      statusTone: localWarning ? "info" : "success",
+    };
+  } catch {
+    return {
+      hasLocalAutosave: false,
+      hasUnexportedChanges: false,
+      localSaveError: localWarning.trim(),
+      localSavedAt: "",
+      localStorageAvailable: local.isAvailable !== false,
+      schedule: structuredClone(sampleSchedule),
+      shouldSaveLocalCopy: true,
+      source: "sample",
+      statusMessage: `${localWarning}Default schedule was unavailable, so sample data was loaded.`,
+      statusTone: "info",
+    };
+  }
+}
+
+// Temporary static default for single-user/GitHub Pages deployment.
+// Later backend or Box loading can replace this without changing the data model.
+async function loadDefaultScheduleFile() {
+  const response = await fetch(DEFAULT_SCHEDULE_URL, { cache: "no-store" });
+
+  if (!response.ok) {
+    throw new Error("Default schedule file could not be loaded.");
+  }
+
+  const result = parseScheduleJson(await response.text());
+
+  if (!result.isValid) {
+    throw new Error(result.errors.join(" "));
+  }
+
+  return result;
+}
+
+async function handleLoadDefaultSchedule() {
+  if (state.readOnly) {
+    return;
+  }
+
+  const confirmed = globalThis.confirm(
+    "Load the default schedule? This will replace the current in-memory schedule and local autosave.",
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    const result = await loadDefaultScheduleFile();
+
+    state.startupSource = "default";
+    commitScheduleLoaded(result.schedule, { preserveScroll: false });
+    showFileStatus("Default schedule loaded. Local autosave was updated.", "success");
+  } catch {
+    showFileStatus("Default schedule could not be loaded. Check data/default-schedule.json.", "error");
+  }
+}
 
 function renderApp(options = {}) {
   const {
@@ -193,6 +357,7 @@ function renderApp(options = {}) {
     viewMode: state.viewMode,
   });
   renderWeekSummary(weekSummary, schedule, dailyTotals, weeklyTotals);
+  updatePersistenceStatus();
 
   if (preserveScroll) {
     restoreHorizontalScrollPositions(scrollPositions);
@@ -201,6 +366,119 @@ function renderApp(options = {}) {
   if (scrollToToday) {
     scrollToTodaySection();
   }
+}
+
+function commitScheduleChange(nextSchedule, renderOptions = { preserveScroll: true }) {
+  schedule = nextSchedule;
+  saveCurrentScheduleLocally({ dirty: true });
+  renderApp(renderOptions);
+}
+
+function commitScheduleState(nextSchedule, renderOptions = { preserveScroll: true }) {
+  schedule = nextSchedule;
+  saveCurrentScheduleLocally({ dirty: state.hasUnexportedChanges });
+  renderApp(renderOptions);
+}
+
+function commitScheduleLoaded(nextSchedule, renderOptions = { preserveScroll: false }) {
+  schedule = nextSchedule;
+  state.hasUnexportedChanges = false;
+  saveCurrentScheduleLocally({ dirty: false });
+  renderApp(renderOptions);
+}
+
+function saveCurrentScheduleLocally({ dirty = state.hasUnexportedChanges } = {}) {
+  if (state.readOnly) {
+    return;
+  }
+
+  const result = saveLocalAutosave(schedule, { dirty });
+
+  state.hasUnexportedChanges = Boolean(dirty);
+
+  if (result.ok) {
+    state.hasLocalAutosave = true;
+    state.localSavedAt = result.savedAt;
+    state.localSaveError = "";
+    state.localStorageAvailable = true;
+  } else {
+    state.localSaveError = result.error;
+    state.localStorageAvailable = false;
+  }
+
+  updatePersistenceStatus();
+}
+
+function markScheduleExported() {
+  state.hasUnexportedChanges = false;
+  markLocalAutosaveExported();
+  updatePersistenceStatus();
+}
+
+function updatePersistenceStatus() {
+  if (!autosaveStatus || !exportReminder) {
+    return;
+  }
+
+  const sourceLabel = getStartupSourceLabel();
+
+  if (state.readOnly) {
+    autosaveStatus.textContent = `Read only. Showing ${sourceLabel}.`;
+    exportReminder.textContent = "Viewer Mode cannot edit, drag, resize, import, or export.";
+    exportReminder.dataset.tone = "info";
+    return;
+  }
+
+  if (state.localSaveError) {
+    autosaveStatus.textContent = state.localSaveError;
+    autosaveStatus.dataset.tone = "error";
+  } else if (state.hasLocalAutosave && state.localSavedAt) {
+    autosaveStatus.textContent = `Last saved locally: ${formatLocalSaveTime(state.localSavedAt)}`;
+    autosaveStatus.dataset.tone = "success";
+  } else if (state.localStorageAvailable) {
+    autosaveStatus.textContent = `Loaded ${sourceLabel}. Local autosave will start after the next change.`;
+    autosaveStatus.dataset.tone = "info";
+  } else {
+    autosaveStatus.textContent = "Local autosave is not available in this browser.";
+    autosaveStatus.dataset.tone = "error";
+  }
+
+  if (state.hasUnexportedChanges) {
+    exportReminder.textContent = "Unsaved changes - export JSON for backup.";
+    exportReminder.dataset.tone = "warning";
+  } else {
+    exportReminder.textContent = "Changes are saved only in this browser on this computer until you export JSON.";
+    exportReminder.dataset.tone = "info";
+  }
+}
+
+function getStartupSourceLabel() {
+  if (state.startupSource === "local") {
+    return "local autosave";
+  }
+
+  if (state.startupSource === "default") {
+    return "the default schedule";
+  }
+
+  if (state.startupSource === "import") {
+    return "the imported schedule";
+  }
+
+  return "sample data";
+}
+
+function formatLocalSaveTime(value) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "recently";
+  }
+
+  return new Intl.DateTimeFormat([], {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(date);
 }
 
 async function handleEditOnCall({ date }) {
@@ -214,8 +492,10 @@ async function handleEditOnCall({ date }) {
   });
 
   if (result.action === "save") {
-    schedule = updateOnCallAssignment(schedule, result.assignment);
-    renderApp({ preserveScroll: true });
+    commitScheduleChange(
+      updateOnCallAssignment(schedule, result.assignment),
+      { preserveScroll: true },
+    );
   }
 }
 
@@ -234,11 +514,13 @@ async function handleAddShift(defaults = {}) {
   if (result.action === "save") {
     const repeatedShifts = buildRepeatedShiftCopies(schedule, result.shift, result.repeat);
     const copiedShifts = buildWorkerCopies(result.shift, result.copy);
-    schedule = addShifts(addShift(schedule, result.shift), [
-      ...repeatedShifts,
-      ...copiedShifts,
-    ]);
-    renderApp({ preserveScroll: true });
+    commitScheduleChange(
+      addShifts(addShift(schedule, result.shift), [
+        ...repeatedShifts,
+        ...copiedShifts,
+      ]),
+      { preserveScroll: true },
+    );
   }
 }
 
@@ -255,10 +537,12 @@ async function handleAddDeskCoverage(defaults = {}) {
   });
 
   if (result.action === "save") {
-    schedule = addDeskCoverageItems(addDeskCoverage(schedule, result.coverage), [
-      ...buildRepeatedDeskCoverageCopies(schedule, result.coverage, result.repeat),
-    ]);
-    renderApp({ preserveScroll: true });
+    commitScheduleChange(
+      addDeskCoverageItems(addDeskCoverage(schedule, result.coverage), [
+        ...buildRepeatedDeskCoverageCopies(schedule, result.coverage, result.repeat),
+      ]),
+      { preserveScroll: true },
+    );
   }
 }
 
@@ -280,25 +564,32 @@ async function handleEditShift(shiftId) {
   });
 
   if (result.action === "save") {
-    schedule = updateShift(schedule, result.shift);
-    schedule = addShifts(
-      schedule,
-      [
-        ...buildRepeatedShiftCopies(schedule, result.shift, result.repeat),
-        ...buildWorkerCopies(result.shift, result.copy),
-      ],
+    const updatedSchedule = updateShift(schedule, result.shift);
+
+    commitScheduleChange(
+      addShifts(
+        updatedSchedule,
+        [
+          ...buildRepeatedShiftCopies(schedule, result.shift, result.repeat),
+          ...buildWorkerCopies(result.shift, result.copy),
+        ],
+      ),
+      { preserveScroll: true },
     );
-    renderApp({ preserveScroll: true });
   }
 
   if (result.action === "copy") {
-    schedule = addShifts(schedule, buildWorkerCopies(result.shift, result.copy));
-    renderApp({ preserveScroll: true });
+    commitScheduleChange(
+      addShifts(schedule, buildWorkerCopies(result.shift, result.copy)),
+      { preserveScroll: true },
+    );
   }
 
   if (result.action === "delete") {
-    schedule = deleteShift(schedule, result.shiftId);
-    renderApp({ preserveScroll: true });
+    commitScheduleChange(
+      deleteShift(schedule, result.shiftId),
+      { preserveScroll: true },
+    );
   }
 }
 
@@ -320,17 +611,22 @@ async function handleEditDeskCoverage(coverageId) {
   });
 
   if (result.action === "save") {
-    schedule = updateDeskCoverage(schedule, result.coverage);
-    schedule = addDeskCoverageItems(
-      schedule,
-      buildRepeatedDeskCoverageCopies(schedule, result.coverage, result.repeat),
+    const updatedSchedule = updateDeskCoverage(schedule, result.coverage);
+
+    commitScheduleChange(
+      addDeskCoverageItems(
+        updatedSchedule,
+        buildRepeatedDeskCoverageCopies(schedule, result.coverage, result.repeat),
+      ),
+      { preserveScroll: true },
     );
-    renderApp({ preserveScroll: true });
   }
 
   if (result.action === "delete") {
-    schedule = deleteDeskCoverage(schedule, result.coverageId);
-    renderApp({ preserveScroll: true });
+    commitScheduleChange(
+      deleteDeskCoverage(schedule, result.coverageId),
+      { preserveScroll: true },
+    );
   }
 }
 
@@ -369,11 +665,13 @@ function handleChangeShift({ shiftId, changes }) {
     return;
   }
 
-  schedule = updateShift(schedule, {
-    ...shift,
-    ...changes,
-  });
-  renderApp({ preserveScroll: true });
+  commitScheduleChange(
+    updateShift(schedule, {
+      ...shift,
+      ...changes,
+    }),
+    { preserveScroll: true },
+  );
 }
 
 function handleChangeDeskCoverage({ coverageId, changes }) {
@@ -387,11 +685,13 @@ function handleChangeDeskCoverage({ coverageId, changes }) {
     return;
   }
 
-  schedule = updateDeskCoverage(schedule, {
-    ...coverage,
-    ...changes,
-  });
-  renderApp({ preserveScroll: true });
+  commitScheduleChange(
+    updateDeskCoverage(schedule, {
+      ...coverage,
+      ...changes,
+    }),
+    { preserveScroll: true },
+  );
 }
 
 function handleDuplicateDeskCoverage({ coverageId, changes }) {
@@ -405,8 +705,10 @@ function handleDuplicateDeskCoverage({ coverageId, changes }) {
     return;
   }
 
-  schedule = addDeskCoverage(schedule, copyDeskCoverage(schedule, coverage, changes));
-  renderApp({ preserveScroll: true });
+  commitScheduleChange(
+    addDeskCoverage(schedule, copyDeskCoverage(schedule, coverage, changes)),
+    { preserveScroll: true },
+  );
 }
 
 function handleDuplicateShift({ shiftId, changes }) {
@@ -430,8 +732,10 @@ function handleDuplicateShift({ shiftId, changes }) {
     }
   }
 
-  schedule = addShift(schedule, copyShift(schedule, shift, changes));
-  renderApp({ preserveScroll: true });
+  commitScheduleChange(
+    addShift(schedule, copyShift(schedule, shift, changes)),
+    { preserveScroll: true },
+  );
 }
 
 function buildWorkerCopies(sourceShift, copyOptions) {
@@ -472,8 +776,8 @@ async function handleImportFile() {
       return;
     }
 
-    schedule = result.schedule;
-    renderApp({ preserveScroll: false });
+    state.startupSource = "import";
+    commitScheduleLoaded(result.schedule, { preserveScroll: false });
 
     const warnings = result.warnings?.length ? ` ${result.warnings.join(" ")}` : "";
     showFileStatus(`Imported ${file.name}.${warnings}`, "success");
@@ -491,8 +795,10 @@ function syncModeControls() {
   for (const control of [
     importJsonButton,
     exportJsonButton,
+    loadDefaultButton,
     manageWorkersButton,
     settingsButton,
+    clearAutosaveButton,
   ]) {
     control.hidden = state.readOnly;
     control.disabled = state.readOnly;
@@ -671,4 +977,4 @@ function renderScheduleWarnings(container, currentSchedule, dailyTotals = {}, we
   }
 }
 
-renderApp({ preserveScroll: false });
+initializeApp();

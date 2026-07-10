@@ -130,11 +130,11 @@ function createEditorElements() {
               <input name="countsTowardHours" type="checkbox" />
               <span>Counts toward hours</span>
             </label>
-            <label class="checkbox-row">
+            <label class="checkbox-row also-on-call-row">
               <input name="alsoOnCall" type="checkbox" />
               <span>Also on call</span>
             </label>
-            <label class="checkbox-row">
+            <label class="checkbox-row also-backup-on-call-row">
               <input name="alsoBackupOnCall" type="checkbox" />
               <span>Also backup on call</span>
             </label>
@@ -207,6 +207,8 @@ function createEditorElements() {
   const repeatPhoneWarning = backdrop.querySelector(".repeat-phone-warning");
   const repeatWeekdayRow = backdrop.querySelector(".repeat-weekday-row");
   const roveTypeOptions = backdrop.querySelector(".rove-type-options");
+  const alsoOnCallRow = backdrop.querySelector(".also-on-call-row");
+  const alsoBackupOnCallRow = backdrop.querySelector(".also-backup-on-call-row");
   const title = backdrop.querySelector("#shift-editor-title");
   const errors = backdrop.querySelector(".form-errors");
   const roveTypeRow = backdrop.querySelector(".rove-type-row");
@@ -258,6 +260,8 @@ function createEditorElements() {
   document.body.append(backdrop);
 
   return {
+    alsoBackupOnCallRow,
+    alsoOnCallRow,
     backdrop,
     copyButton,
     copyPhoneWarning,
@@ -478,8 +482,8 @@ function readShiftFromForm() {
     notes: getField("notes").value.trim(),
     color: getField("color").value,
     countsTowardHours: getField("countsTowardHours").checked,
-    alsoOnCall: getField("alsoOnCall").checked,
-    alsoBackupOnCall: getField("alsoBackupOnCall").checked,
+    alsoOnCall: isStandalonePhoneShift(shiftType) ? false : getField("alsoOnCall").checked,
+    alsoBackupOnCall: isStandalonePhoneShift(shiftType) ? false : getField("alsoBackupOnCall").checked,
   };
 }
 
@@ -638,13 +642,27 @@ function normalizeTimeField(fieldName) {
 function updateConditionalFields() {
   const shiftType = getField("shiftType").value;
   const countsTowardHours = getField("countsTowardHours");
+  const isPhoneOnly = isStandalonePhoneShift(shiftType);
 
   editorElements.roveTypeRow.hidden = shiftType !== "Roving";
   countsTowardHours.disabled = ["OFF", "On Call", "Backup On Call"].includes(shiftType);
+  editorElements.alsoOnCallRow.hidden = isPhoneOnly;
+  editorElements.alsoBackupOnCallRow.hidden = isPhoneOnly;
+  getField("alsoOnCall").disabled = isPhoneOnly;
+  getField("alsoBackupOnCall").disabled = isPhoneOnly;
+
+  if (isPhoneOnly) {
+    getField("alsoOnCall").checked = false;
+    getField("alsoBackupOnCall").checked = false;
+  }
 
   if (countsTowardHours.disabled) {
     countsTowardHours.checked = false;
   }
+}
+
+function isStandalonePhoneShift(shiftType) {
+  return shiftType === "On Call" || shiftType === "Backup On Call";
 }
 
 function updateRepeatFields() {
