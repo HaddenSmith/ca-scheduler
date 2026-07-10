@@ -65,21 +65,21 @@ const state = {
   viewMode: "detailed",
 };
 
-const scheduleBoard = document.querySelector("#schedule-board");
-const weekSummary = document.querySelector("#week-summary");
-const scheduleWarnings = document.querySelector("#schedule-warnings");
-const weekRangeLabel = document.querySelector("#week-range-label");
-const fileStatus = document.querySelector("#file-status");
-const importJsonInput = document.querySelector("#json-import-input");
-const settingsButton = document.querySelector(".settings-button");
-const autosaveStatus = document.querySelector("#autosave-status");
-const exportReminder = document.querySelector("#export-reminder");
-const adminActionsGroup = document.querySelector(".admin-actions");
-const previousWeekButton = document.querySelector(".previous-week-button");
-const currentWeekButton = document.querySelector(".current-week-button");
-const nextWeekButton = document.querySelector(".next-week-button");
-const viewerModeIndicator = document.querySelector("[data-viewer-mode-indicator]");
-const viewModeButtons = [...document.querySelectorAll("button[data-view-mode]")];
+const scheduleBoard = getRequiredElement("#schedule-board");
+const weekSummary = getRequiredElement("#week-summary");
+const scheduleWarnings = getRequiredElement("#schedule-warnings");
+const weekRangeLabel = getRequiredElement("#week-range-label");
+const fileStatus = getRequiredElement("#file-status");
+const importJsonInput = getOptionalElement("#json-import-input");
+const settingsButton = getOptionalElement(".settings-button");
+const autosaveStatus = getRequiredElement("#autosave-status");
+const exportReminder = getRequiredElement("#export-reminder");
+const adminActionsGroup = getOptionalElement(".admin-actions");
+const previousWeekButton = getRequiredElement(".previous-week-button");
+const currentWeekButton = getRequiredElement(".current-week-button");
+const nextWeekButton = getRequiredElement(".next-week-button");
+const viewerModeIndicator = getOptionalElement("[data-viewer-mode-indicator]");
+const viewModeButtons = getRequiredElements("button[data-view-mode]");
 
 for (const button of viewModeButtons) {
   button.addEventListener("click", () => {
@@ -88,9 +88,9 @@ for (const button of viewModeButtons) {
   });
 }
 
-importJsonInput.addEventListener("change", handleImportFile);
+addOptionalListener(importJsonInput, "change", handleImportFile);
 
-settingsButton.addEventListener("click", handleSettingsAction);
+addOptionalListener(settingsButton, "click", handleSettingsAction);
 
 async function handleSettingsAction() {
   if (state.readOnly) {
@@ -119,6 +119,11 @@ async function handleSettingsAction() {
   }
 
   if (result.action === "import-json") {
+    if (!importJsonInput) {
+      showFileStatus("Import is unavailable because the file input is missing from the page.", "error");
+      return;
+    }
+
     importJsonInput.click();
     return;
   }
@@ -773,8 +778,9 @@ function buildWorkerCopies(sourceShift, copyOptions) {
   });
 }
 
-async function handleImportFile() {
-  const file = importJsonInput.files?.[0];
+async function handleImportFile(event) {
+  const input = event?.currentTarget ?? importJsonInput;
+  const file = input?.files?.[0];
 
   if (!file) {
     return;
@@ -806,18 +812,27 @@ async function handleImportFile() {
   } catch {
     showFileStatus("Import failed. Please choose a valid schedule JSON file.", "error");
   } finally {
-    importJsonInput.value = "";
+    if (input) {
+      input.value = "";
+    }
   }
 }
 
 function syncModeControls() {
   document.body.dataset.appMode = state.readOnly ? "viewer" : "editor";
-  viewerModeIndicator.hidden = !state.readOnly;
 
-  settingsButton.hidden = state.readOnly;
-  settingsButton.disabled = state.readOnly;
+  if (viewerModeIndicator) {
+    viewerModeIndicator.hidden = !state.readOnly;
+  }
 
-  adminActionsGroup.hidden = state.readOnly;
+  if (settingsButton) {
+    settingsButton.hidden = state.readOnly;
+    settingsButton.disabled = state.readOnly;
+  }
+
+  if (adminActionsGroup) {
+    adminActionsGroup.hidden = state.readOnly;
+  }
 }
 
 function captureHorizontalScrollPositions() {
@@ -859,6 +874,36 @@ function showFileStatus(message, tone = "info") {
   fileStatus.textContent = message;
   fileStatus.dataset.tone = tone;
   fileStatus.hidden = false;
+}
+
+function getRequiredElement(selector) {
+  const element = document.querySelector(selector);
+
+  if (!element) {
+    throw new Error(`Required page element is missing: ${selector}`);
+  }
+
+  return element;
+}
+
+function getOptionalElement(selector) {
+  return document.querySelector(selector);
+}
+
+function getRequiredElements(selector) {
+  const elements = [...document.querySelectorAll(selector)];
+
+  if (elements.length === 0) {
+    throw new Error(`Required page elements are missing: ${selector}`);
+  }
+
+  return elements;
+}
+
+function addOptionalListener(element, eventName, handler) {
+  if (element) {
+    element.addEventListener(eventName, handler);
+  }
 }
 
 function isViewerModeFromUrl() {
