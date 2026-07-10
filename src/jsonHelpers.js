@@ -230,6 +230,7 @@ function normalizeSettings(value, warnings) {
   settings.lateNightWarningEnabled = settings.lateNightWarningEnabled !== false;
   settings.weeklyMaxHoursWarningEnabled = settings.weeklyMaxHoursWarningEnabled !== false;
   settings.dailyMaxHoursWarningEnabled = settings.dailyMaxHoursWarningEnabled !== false;
+  settings.viewerWarningsEnabled = settings.viewerWarningsEnabled !== false;
 
   if (!isPositiveNumber(settings.maxWeeklyHours)) {
     warnings.push("Invalid max weekly hours was replaced with 40.");

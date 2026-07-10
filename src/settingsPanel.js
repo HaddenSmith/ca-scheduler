@@ -12,6 +12,7 @@ const COLOR_FIELDS = [
   { key: "Desk", label: "Desk" },
   { key: "Class", label: "Class" },
   { key: "On Call", label: "On Call / Backup On Call", linkedKeys: ["On Call", "Backup On Call"] },
+  { key: "Desk Coverage", label: "Desk Coverage" },
   { key: "OFF", label: "OFF" },
 ];
 
@@ -63,34 +64,43 @@ function createSettingsElements() {
       <form class="shift-editor-form" novalidate>
         <div class="form-errors" aria-live="polite" hidden></div>
 
-        <div class="form-grid">
-          <label>
-            <span>Time Increment</span>
-            <select name="slotMinutes"></select>
-          </label>
+        <fieldset class="settings-fieldset">
+          <legend>Schedule Settings</legend>
 
-          <label>
-            <span>Week Start Day</span>
-            <select name="weekStartsOn"></select>
-          </label>
-        </div>
+          <div class="form-grid">
+            <label>
+              <span>Time Increment</span>
+              <select name="slotMinutes"></select>
+            </label>
 
-        <div class="form-grid">
-          <label>
-            <span>Visible Day Start</span>
-            <input name="startTime" type="text" list="settings-time-options" inputmode="numeric" required />
-          </label>
+            <label>
+              <span>Week Start Day</span>
+              <select name="weekStartsOn"></select>
+            </label>
+          </div>
 
-          <label>
-            <span>Visible Day End</span>
-            <input name="endTime" type="text" list="settings-time-options" inputmode="numeric" required />
-          </label>
-        </div>
+          <div class="form-grid">
+            <label>
+              <span>Visible Day Start</span>
+              <input name="startTime" type="text" list="settings-time-options" inputmode="numeric" required />
+            </label>
+
+            <label>
+              <span>Visible Day End</span>
+              <input name="endTime" type="text" list="settings-time-options" inputmode="numeric" required />
+            </label>
+          </div>
+        </fieldset>
 
         <datalist id="settings-time-options"></datalist>
 
         <fieldset class="settings-fieldset">
           <legend>Warnings</legend>
+
+          <label class="checkbox-row">
+            <input name="viewerWarningsEnabled" type="checkbox" />
+            <span>Show warnings in Viewer Mode</span>
+          </label>
 
           <label class="checkbox-row">
             <input name="weeklyMaxHoursWarningEnabled" type="checkbox" />
@@ -156,6 +166,23 @@ function createSettingsElements() {
           <div class="color-settings-grid"></div>
         </fieldset>
 
+        <fieldset class="settings-fieldset settings-actions-section">
+          <legend>Workers</legend>
+          <p class="field-help">Add, rename, remove, or drag workers into schedule column order.</p>
+          <button type="button" class="secondary-button" data-settings-action="manage-workers">Manage Workers</button>
+        </fieldset>
+
+        <fieldset class="settings-fieldset settings-actions-section">
+          <legend>Data / Backup</legend>
+          <p class="field-help">Local autosave stays in this browser. Export JSON to back up or share the schedule.</p>
+          <div class="settings-action-grid">
+            <button type="button" class="secondary-button" data-settings-action="import-json">Import JSON</button>
+            <button type="button" class="secondary-button" data-settings-action="export-json">Export JSON</button>
+            <button type="button" class="secondary-button" data-settings-action="clear-autosave">Clear Local Autosave</button>
+            <button type="button" class="danger-button subtle-danger-button" data-settings-action="load-default">Load Default Schedule</button>
+          </div>
+        </fieldset>
+
         <footer class="shift-editor-actions align-end">
           <div>
             <button type="button" class="secondary-button" data-settings-action="cancel">Cancel</button>
@@ -183,6 +210,12 @@ function createSettingsElements() {
 
   for (const button of backdrop.querySelectorAll('[data-settings-action="cancel"]')) {
     button.addEventListener("click", () => closeSettings({ action: "cancel", settings: null }));
+  }
+
+  for (const action of ["manage-workers", "import-json", "export-json", "clear-autosave", "load-default"]) {
+    backdrop.querySelector(`[data-settings-action="${action}"]`).addEventListener("click", () => {
+      closeSettings({ action, settings: null });
+    });
   }
 
   document.addEventListener("keydown", (event) => {
@@ -221,6 +254,7 @@ function populateSettingsForm() {
   getField("weekStartsOn").value = String(settings.weekStartsOn);
   getField("startTime").value = formatTimeForDisplay(settings.startTime);
   getField("endTime").value = formatTimeForDisplay(settings.endTime);
+  getField("viewerWarningsEnabled").checked = settings.viewerWarningsEnabled !== false;
   getField("weeklyMaxHoursWarningEnabled").checked = settings.weeklyMaxHoursWarningEnabled !== false;
   getField("maxWeeklyHours").value = String(settings.maxWeeklyHours ?? DEFAULT_SETTINGS.maxWeeklyHours);
   getField("dailyMaxHoursWarningEnabled").checked = settings.dailyMaxHoursWarningEnabled !== false;
@@ -311,6 +345,7 @@ function readSettingsForm() {
       endTime: endResult.isValid ? endResult.value : activeContext.settings.endTime,
       slotMinutes,
       weekStartsOn,
+      viewerWarningsEnabled: getField("viewerWarningsEnabled").checked,
       weeklyMaxHoursWarningEnabled: getField("weeklyMaxHoursWarningEnabled").checked,
       maxWeeklyHours: Number.isFinite(maxWeeklyHours)
         ? maxWeeklyHours

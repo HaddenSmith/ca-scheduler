@@ -62,6 +62,7 @@
  * @property {number} maxWeeklyHours
  * @property {boolean} dailyMaxHoursWarningEnabled
  * @property {number} maxDailyHours
+ * @property {boolean} viewerWarningsEnabled
  */
 
 export const DEFAULT_SETTINGS = {
@@ -79,6 +80,7 @@ export const DEFAULT_SETTINGS = {
   maxWeeklyHours: 40,
   dailyMaxHoursWarningEnabled: true,
   maxDailyHours: 10,
+  viewerWarningsEnabled: true,
   shiftColors: {
     "Check In": "#91cf50",
     "Check Out": "#fed866",
@@ -89,6 +91,7 @@ export const DEFAULT_SETTINGS = {
     Class: "#a6a6a6",
     "On Call": "#c56829",
     "Backup On Call": "#c56829",
+    "Desk Coverage": "#a6a6a6",
     OFF: "#a6a6a6",
     Other: "#7aa7ff",
   },
@@ -105,6 +108,7 @@ export const EDITABLE_SHIFT_COLOR_KEYS = [
   "Desk",
   "Class",
   "On Call",
+  "Desk Coverage",
   "OFF",
 ];
 
@@ -287,5 +291,13 @@ export function getDefaultShiftColor(shiftType, settings = {}) {
     settings.shiftColors?.[shiftType] ??
     DEFAULT_SHIFT_COLORS[shiftType] ??
     DEFAULT_SHIFT_COLORS.Other
+  );
+}
+
+export function getDefaultDeskCoverageColor(settings = {}) {
+  return (
+    settings.shiftColors?.["Desk Coverage"] ??
+    settings.shiftColors?.OFF ??
+    DEFAULT_SHIFT_COLORS["Desk Coverage"]
   );
 }

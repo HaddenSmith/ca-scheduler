@@ -11,7 +11,8 @@ This is still single-user/local-browser software. There is no backend, Box sync,
 - Week navigation with Previous Week, Today, and Next Week.
 - Today scrolls to the current date in Detailed Day View.
 - Worker columns under each day, with stable worker IDs.
-- Manage Workers modal for adding, renaming, removing, and drag-reordering workers.
+- Settings panel with schedule, warning, color, worker, and data/backup sections.
+- Manage Workers controls for adding, renaming, removing, and drag-reordering workers.
 - Click or drag empty grid space to create shifts.
 - Click existing shifts to edit, save, delete, copy, or repeat.
 - Drag normal shifts between workers, times, and days.
@@ -22,7 +23,7 @@ This is still single-user/local-browser software. There is no backend, Box sync,
 - Multi-select roving subtypes with generated labels and notes.
 - Custom note markers on shift blocks.
 - Shift type presets for Check In, Check Out, Roving, Projects, Staff Meeting, Desk, Class, On Call, Backup On Call, OFF, and Other.
-- Official default colors, editable in Settings.
+- Official default colors, editable in Settings. Changing a default color updates existing default-colored blocks while preserving custom colors.
 - Night On Call and Night Backup assignments.
 - Also On Call and Also Backup On Call flags on regular shifts.
 - Standalone On Call and Backup On Call shift types that do not count toward work hours.
@@ -30,17 +31,18 @@ This is still single-user/local-browser software. There is no backend, Box sync,
 - Add, edit, delete, drag, resize, duplicate, and repeat Desk Coverage blocks.
 - Daily totals, weekly totals, and weekly hours-by-type summary.
 - Non-blocking warnings for overlap, phone coverage overlap, long consecutive work, late-night into early-morning, weekly max hours, and daily max hours.
-- JSON export/import for restoring the full local schedule state.
+- JSON export/import for restoring the full local schedule state, available from Settings -> Data / Backup.
 - Single-computer localStorage autosave in edit mode.
-- Clear Local Autosave and Load Default Schedule controls.
+- Clear Local Autosave and Load Default Schedule controls in Settings -> Data / Backup.
 - Static default schedule loading from `data/default-schedule.json`.
 - Viewer mode with `index.html?mode=view` or `viewer.html`.
+- Optional warning display in Viewer Mode, controlled from edit-mode Settings.
 
 ## Edit Mode vs Viewer Mode
 
-Edit mode is the default. It allows creating, editing, dragging, resizing, copying, repeating, importing, exporting, changing settings, and managing workers.
+Edit mode is the default. It allows creating, editing, dragging, resizing, copying, repeating, importing, exporting, changing settings, and managing workers. The main toolbar stays focused on week navigation, view mode, and Settings; worker and data tools live inside Settings.
 
-Viewer mode is read-only. It keeps schedule display, week navigation, view switching, warnings, totals, shift details, and Desk Coverage display, but hides or disables editing controls.
+Viewer mode is read-only. It keeps schedule display, week navigation, view switching, totals, shift details, and Desk Coverage display, but hides or disables editing controls. Warnings can be shown or hidden in Viewer Mode with the edit-mode setting.
 
 Open viewer mode with:
 
@@ -56,9 +58,9 @@ viewer.html
 
 ## JSON Import and Export
 
-Export JSON downloads a human-readable schedule file containing workers, shifts, Desk Coverage, nightly on-call assignments, settings, warning settings, colors, current week, schema version, and metadata.
+Use **Settings -> Data / Backup -> Export JSON** to download a human-readable schedule file containing workers, shifts, Desk Coverage, nightly on-call assignments, settings, warning settings, colors, current week, schema version, and metadata.
 
-Import JSON validates the selected file before replacing the current in-memory schedule. Invalid files are rejected without destroying the current schedule.
+Use **Settings -> Data / Backup -> Import JSON** to validate a selected file before replacing the current in-memory schedule. Invalid files are rejected without destroying the current schedule.
 
 The JSON file represents the whole schedule, not only the visible week.
 
@@ -68,9 +70,9 @@ Edit mode autosaves the current schedule to this browser's `localStorage`. On th
 
 Local autosave is not a shared backup. It does not sync across computers, browsers, GitHub Pages, Box, or coworkers. Export JSON whenever you need to back up, share, or move the schedule.
 
-Use **Clear Local Autosave** to remove the saved browser copy. Use **Load Default Schedule** to replace the current open schedule with `data/default-schedule.json`.
+Use **Settings -> Data / Backup -> Clear Local Autosave** to remove the saved browser copy. Use **Settings -> Data / Backup -> Load Default Schedule** to replace the current open schedule with `data/default-schedule.json`.
 
-If the app says “Unsaved changes - export JSON for backup,” local autosave may already have saved the browser copy, but the schedule has not been exported as a portable file since the last edit.
+If the app says "Unsaved changes - open Settings -> Data / Backup -> Export JSON," local autosave may already have saved the browser copy, but the schedule has not been exported as a portable file since the last edit.
 
 ## Default Schedule
 
@@ -108,7 +110,7 @@ This app is static and should work on GitHub Pages as long as the repository pub
 - `src/...`
 - `data/default-schedule.json`
 
-To share a schedule today, export JSON and upload or send the exported file. To continue on the same computer/browser later, local autosave should restore the last browser copy. To start fresh, clear local autosave or load the default schedule.
+To share a schedule today, export JSON from Settings -> Data / Backup and upload or send the exported file. To continue on the same computer/browser later, local autosave should restore the last browser copy. To start fresh, clear local autosave or load the default schedule from Settings -> Data / Backup.
 
 ## File Map
 

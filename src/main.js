@@ -23,6 +23,7 @@ import {
   deleteShift,
   getOnCallAssignment,
   shiftHasPhoneCoverage,
+  applyColorDefaultChanges,
   updateDeskCoverage,
   updateShift,
   updateOnCallAssignment,
@@ -69,16 +70,10 @@ const weekSummary = document.querySelector("#week-summary");
 const scheduleWarnings = document.querySelector("#schedule-warnings");
 const weekRangeLabel = document.querySelector("#week-range-label");
 const fileStatus = document.querySelector("#file-status");
-const importJsonButton = document.querySelector(".import-json-button");
-const exportJsonButton = document.querySelector(".export-json-button");
-const loadDefaultButton = document.querySelector(".load-default-button");
 const importJsonInput = document.querySelector("#json-import-input");
-const manageWorkersButton = document.querySelector(".manage-workers-button");
 const settingsButton = document.querySelector(".settings-button");
-const clearAutosaveButton = document.querySelector(".clear-autosave-button");
 const autosaveStatus = document.querySelector("#autosave-status");
 const exportReminder = document.querySelector("#export-reminder");
-const dataActionsGroup = document.querySelector(".header-actions");
 const adminActionsGroup = document.querySelector(".admin-actions");
 const previousWeekButton = document.querySelector(".previous-week-button");
 const currentWeekButton = document.querySelector(".current-week-button");
@@ -93,15 +88,69 @@ for (const button of viewModeButtons) {
   });
 }
 
-importJsonButton.addEventListener("click", () => {
+importJsonInput.addEventListener("change", handleImportFile);
+
+settingsButton.addEventListener("click", handleSettingsAction);
+
+async function handleSettingsAction() {
   if (state.readOnly) {
     return;
   }
 
-  importJsonInput.click();
-});
+  const result = await openSettingsPanel(schedule);
 
-exportJsonButton.addEventListener("click", () => {
+  if (result.action === "save") {
+    const scheduleWithSettings = {
+      ...schedule,
+      settings: result.settings,
+      weekStartDate: getWeekStartDate(schedule.weekStartDate, result.settings.weekStartsOn),
+    };
+
+    commitScheduleChange(
+      applyColorDefaultChanges(scheduleWithSettings, schedule.settings, result.settings),
+      { preserveScroll: true },
+    );
+    return;
+  }
+
+  if (result.action === "manage-workers") {
+    await handleManageWorkers();
+    return;
+  }
+
+  if (result.action === "import-json") {
+    importJsonInput.click();
+    return;
+  }
+
+  if (result.action === "export-json") {
+    handleExportJson();
+    return;
+  }
+
+  if (result.action === "clear-autosave") {
+    handleClearLocalAutosave();
+    return;
+  }
+
+  if (result.action === "load-default") {
+    await handleLoadDefaultSchedule();
+  }
+}
+
+async function handleManageWorkers() {
+  if (state.readOnly) {
+    return;
+  }
+
+  const result = await openWorkerManager(schedule);
+
+  if (result.action === "save") {
+    commitScheduleChange(result.schedule, { preserveScroll: true });
+  }
+}
+
+function handleExportJson() {
   if (state.readOnly) {
     return;
   }
@@ -113,13 +162,9 @@ exportJsonButton.addEventListener("click", () => {
   } catch {
     showFileStatus("Export failed. Please try again.", "error");
   }
-});
+}
 
-importJsonInput.addEventListener("change", handleImportFile);
-
-loadDefaultButton.addEventListener("click", handleLoadDefaultSchedule);
-
-clearAutosaveButton.addEventListener("click", () => {
+function handleClearLocalAutosave() {
   if (state.readOnly) {
     return;
   }
@@ -139,35 +184,7 @@ clearAutosaveButton.addEventListener("click", () => {
   state.localSaveError = "";
   updatePersistenceStatus();
   showFileStatus("Local autosave cleared. Export JSON if you need a backup of the current schedule.", "info");
-});
-
-manageWorkersButton.addEventListener("click", async () => {
-  if (state.readOnly) {
-    return;
-  }
-
-  const result = await openWorkerManager(schedule);
-
-  if (result.action === "save") {
-    commitScheduleChange(result.schedule, { preserveScroll: true });
-  }
-});
-
-settingsButton.addEventListener("click", async () => {
-  if (state.readOnly) {
-    return;
-  }
-
-  const result = await openSettingsPanel(schedule);
-
-  if (result.action === "save") {
-    commitScheduleChange({
-      ...schedule,
-      settings: result.settings,
-      weekStartDate: getWeekStartDate(schedule.weekStartDate, result.settings.weekStartsOn),
-    }, { preserveScroll: true });
-  }
-});
+}
 
 previousWeekButton.addEventListener("click", () => {
   commitScheduleState({
@@ -340,7 +357,12 @@ function renderApp(options = {}) {
     button.setAttribute("aria-pressed", String(button.dataset.viewMode === state.viewMode));
   }
 
-  renderScheduleWarnings(scheduleWarnings, schedule, dailyTotals, weeklyTotals);
+  if (state.readOnly && schedule.settings.viewerWarningsEnabled === false) {
+    scheduleWarnings.replaceChildren();
+    scheduleWarnings.hidden = true;
+  } else {
+    renderScheduleWarnings(scheduleWarnings, schedule, dailyTotals, weeklyTotals);
+  }
   renderScheduleBoard(scheduleBoard, schedule, dailyTotals, {
     onAddDeskCoverage: handleAddDeskCoverage,
     onAddShift: handleAddShift,
@@ -444,7 +466,7 @@ function updatePersistenceStatus() {
   }
 
   if (state.hasUnexportedChanges) {
-    exportReminder.textContent = "Unsaved changes - export JSON for backup.";
+    exportReminder.textContent = "Unsaved changes - open Settings -> Data / Backup -> Export JSON.";
     exportReminder.dataset.tone = "warning";
   } else {
     exportReminder.textContent = "Changes are saved only in this browser on this computer until you export JSON.";
@@ -792,19 +814,9 @@ function syncModeControls() {
   document.body.dataset.appMode = state.readOnly ? "viewer" : "editor";
   viewerModeIndicator.hidden = !state.readOnly;
 
-  for (const control of [
-    importJsonButton,
-    exportJsonButton,
-    loadDefaultButton,
-    manageWorkersButton,
-    settingsButton,
-    clearAutosaveButton,
-  ]) {
-    control.hidden = state.readOnly;
-    control.disabled = state.readOnly;
-  }
+  settingsButton.hidden = state.readOnly;
+  settingsButton.disabled = state.readOnly;
 
-  dataActionsGroup.hidden = state.readOnly;
   adminActionsGroup.hidden = state.readOnly;
 }
 

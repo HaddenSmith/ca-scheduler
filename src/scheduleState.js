@@ -1,5 +1,6 @@
 import {
   SHIFT_TYPE_PRESETS,
+  getDefaultDeskCoverageColor,
   getDefaultShiftColor,
 } from "./model.js";
 import {
@@ -102,7 +103,7 @@ export function createDefaultDeskCoverage(schedule, defaults = {}) {
     endTime: defaults.endTime ?? "09:30",
     label: defaults.label ?? "D",
     notes: defaults.notes ?? "",
-    color: defaults.color ?? "#a6a6a6",
+    color: defaults.color ?? getDefaultDeskCoverageColor(schedule.settings),
   }, schedule.settings);
 }
 
@@ -208,7 +209,39 @@ export function normalizeDeskCoverage(coverage, settings = {}) {
     endTime,
     label: coverage.label?.trim() || "D",
     notes: coverage.notes?.trim() ?? "",
-    color: coverage.color || "#a6a6a6",
+    color: coverage.color || getDefaultDeskCoverageColor(settings),
+  };
+}
+
+export function applyColorDefaultChanges(schedule, oldSettings, newSettings) {
+  return {
+    ...schedule,
+    shifts: schedule.shifts.map((shift) => {
+      const oldDefault = getDefaultShiftColor(shift.shiftType, oldSettings);
+      const newDefault = getDefaultShiftColor(shift.shiftType, newSettings);
+
+      if (!colorsMatch(oldDefault, newDefault) && colorsMatch(shift.color, oldDefault)) {
+        return {
+          ...shift,
+          color: newDefault,
+        };
+      }
+
+      return shift;
+    }),
+    deskCoverage: (schedule.deskCoverage ?? []).map((coverage) => {
+      const oldDefault = getDefaultDeskCoverageColor(oldSettings);
+      const newDefault = getDefaultDeskCoverageColor(newSettings);
+
+      if (!colorsMatch(oldDefault, newDefault) && colorsMatch(coverage.color, oldDefault)) {
+        return {
+          ...coverage,
+          color: newDefault,
+        };
+      }
+
+      return coverage;
+    }),
   };
 }
 
@@ -480,4 +513,12 @@ function createWorkerId(name, workers) {
   }
 
   return candidate;
+}
+
+function colorsMatch(left, right) {
+  return normalizeColor(left) === normalizeColor(right);
+}
+
+function normalizeColor(value) {
+  return String(value ?? "").trim().toLowerCase().replace(/\s+/g, "");
 }

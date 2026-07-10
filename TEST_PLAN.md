@@ -12,7 +12,11 @@ Use this checklist before moving toward backend, Box, or server work.
 - Use Previous Week, Next Week, and Today.
 - In Detailed Day View, click Today and confirm the page scrolls to today's day section.
 - Open Settings, change a harmless setting, save, and confirm the schedule re-renders.
+- Confirm the main toolbar only shows Previous Week, Today, Next Week, Detailed Day View, Compact Week View, and Settings.
 - Confirm the toolbar remains compact on desktop and stacks cleanly on narrow screens.
+- Confirm Manage Workers, Import JSON, Export JSON, Clear Local Autosave, and Load Default Schedule are available from Settings instead of the main toolbar.
+- Change a shift color default in Settings and confirm existing default-colored shifts update.
+- Change a shift color default in Settings and confirm custom-colored shifts are preserved.
 - Confirm Detailed Day View is usable with around 12 workers plus Desk Coverage on a normal desktop screen.
 - Confirm too-small screens scroll horizontally instead of making worker columns unreadable.
 
@@ -20,26 +24,28 @@ Use this checklist before moving toward backend, Box, or server work.
 
 - Open the app in edit mode with empty localStorage and confirm `data/default-schedule.json` loads.
 - Confirm the default schedule has 12 workers and realistic multi-week schedule data.
+- Confirm the default schedule uses clean labels such as Check In, Check Out, Desk, Projects, Staff Meeting, Class, OFF, On Call, Backup On Call, and roving subtype labels.
 - Make a small edit and confirm the local save status updates.
 - Refresh the page and confirm the edit restores from local autosave.
-- Confirm the app shows “Unsaved changes - export JSON for backup” after an edit.
-- Export JSON and confirm the unsaved/export reminder clears or softens.
-- Import valid JSON and confirm the unsaved/export reminder clears until the next edit.
+- Confirm the app shows "Unsaved changes - open Settings -> Data / Backup -> Export JSON" after an edit.
+- Export JSON from Settings -> Data / Backup and confirm the unsaved/export reminder clears or softens.
+- Import valid JSON from Settings -> Data / Backup and confirm the unsaved/export reminder clears until the next edit.
 - Try refreshing/closing after an unexported edit and confirm the browser warns before leaving.
-- Use Clear Local Autosave, confirm the warning prompt appears, and confirm the current open schedule stays visible.
+- Use Clear Local Autosave from Settings -> Data / Backup, confirm the warning prompt appears, and confirm the current open schedule stays visible.
 - Refresh after clearing local autosave and confirm the default schedule loads again.
-- Use Load Default Schedule, confirm the warning prompt appears, and confirm current in-memory/local schedule is replaced.
+- Use Load Default Schedule from Settings -> Data / Backup, confirm the warning prompt appears, and confirm current in-memory/local schedule is replaced.
 - Temporarily remove or rename `data/default-schedule.json` during local testing and confirm sample data loads gracefully.
 
 ## JSON
 
-- Export JSON and confirm the downloaded file is readable.
-- Import that valid JSON and confirm workers, shifts, Desk Coverage, settings, warnings, colors, and current week restore.
+- Export JSON from Settings and confirm the downloaded file is readable.
+- Import that valid JSON from Settings and confirm workers, shifts, Desk Coverage, settings, warnings, colors, and current week restore.
 - Try importing invalid JSON and confirm the current schedule is not replaced.
 - Import older JSON without newer fields and confirm defaults are filled safely.
-- Confirm `deskCoverage`, `roveSubtypes`, warning settings, and worker order survive JSON round trip.
+- Confirm `deskCoverage`, `roveSubtypes`, warning settings, `viewerWarningsEnabled`, and worker order survive JSON round trip.
 - Confirm viewer mode still works after importing JSON in edit mode.
 - Confirm local autosave restores the imported schedule after refresh.
+- Confirm older JSON without `viewerWarningsEnabled` imports with Viewer Mode warnings enabled by default.
 
 ## Normal Shifts
 
@@ -59,6 +65,7 @@ Use this checklist before moving toward backend, Box, or server work.
 - Create repeated normal shifts.
 - Confirm custom labels are preserved.
 - Confirm changing shift type updates default labels only when appropriate.
+- Confirm compact/cramped blocks show abbreviations for default labels without changing the saved label.
 - Confirm custom note markers appear only for custom notes.
 - Confirm On Call and Backup On Call shift types hide the extra Also On Call / Also Backup On Call checkboxes.
 - Confirm normal working shift types still show both phone coverage checkboxes.
@@ -79,6 +86,9 @@ Use this checklist before moving toward backend, Box, or server work.
 - Trigger and verify weekly max hours warnings.
 - Trigger and verify daily max hours warnings.
 - Disable each warning setting and confirm the matching warning hides.
+- In edit mode, confirm warnings show normally.
+- In viewer mode, confirm warnings show when "Show warnings in Viewer Mode" is enabled.
+- In viewer mode, confirm warnings hide when "Show warnings in Viewer Mode" is disabled in the saved schedule.
 
 ## Totals
 

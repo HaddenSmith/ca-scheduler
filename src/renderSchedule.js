@@ -1,8 +1,9 @@
 import { buildWeekDates, formatTimeForDisplay } from "./dateUtils.js";
 import { attachDeskCoverageInteractions, attachShiftInteractions } from "./dragDrop.js";
 import { attachGridCreateInteractions } from "./gridCreate.js";
+import { SHIFT_TYPE_PRESETS } from "./model.js";
 import { renderDayTotals } from "./renderTotals.js";
-import { hasCustomShiftNotes } from "./rovingUtils.js";
+import { formatRoveSubtypesLabel, hasCustomShiftNotes, isRovingAutoLabel } from "./rovingUtils.js";
 import { getOnCallAssignment } from "./scheduleState.js";
 import {
   buildTimeTicks,
@@ -29,6 +30,19 @@ const VIEW_LAYOUTS = {
     timeTickStep: 3,
     viewMode: "compact",
   },
+};
+
+const CRAMPED_LABELS = {
+  "Check In": "CI",
+  "Check Out": "CO",
+  Projects: "P",
+  Desk: "D",
+  "Staff Meeting": "SM",
+  "On Call": "OC",
+  "Backup On Call": "BOC",
+  Class: "Class",
+  OFF: "OFF",
+  Other: "Other",
 };
 
 export function renderScheduleBoard(container, schedule, dailyTotals, options = {}) {
@@ -139,6 +153,7 @@ function renderDayGrid(schedule, isoDate, layout, callbacks) {
         callbacks,
         onCallAssignment,
         isoDate,
+        schedule.workers.length,
       ),
     );
   }
@@ -208,6 +223,7 @@ function renderWorkerColumn(
   callbacks,
   onCallAssignment,
   isoDate,
+  workerCount,
 ) {
   const column = document.createElement("div");
   column.className = "worker-column";
@@ -227,7 +243,7 @@ function renderWorkerColumn(
   body.style.height = `${height}px`;
 
   for (const shift of layoutOverlappingShifts(shifts, settings)) {
-    body.append(renderShiftBlock(shift, settings, layout, callbacks));
+    body.append(renderShiftBlock(shift, settings, layout, callbacks, workerCount));
   }
 
   if (!callbacks.readOnly) {
@@ -396,7 +412,7 @@ function createOnCallTag(text) {
   return tag;
 }
 
-function renderShiftBlock(layoutShift, settings, layout, callbacks) {
+function renderShiftBlock(layoutShift, settings, layout, callbacks, workerCount) {
   const template = document.querySelector("#event-template");
   const node = template.content.firstElementChild.cloneNode(true);
   const shift = layoutShift.shift;
@@ -416,12 +432,14 @@ function renderShiftBlock(layoutShift, settings, layout, callbacks) {
   node.style.height = `${height}px`;
   node.style.left = `${layoutShift.leftPercent}%`;
   node.style.width = `calc(${layoutShift.widthPercent}% - 4px)`;
-  node.title = `${shift.name}: ${formatTimeForDisplay(shift.startTime)} - ${formatTimeForDisplay(shift.endTime)}. ${callbacks.readOnly ? "Click for details." : "Click to edit."}`;
+  const displayLabel = getDisplayShiftLabel(shift, layout, workerCount, layoutShift);
+
+  node.title = `${shift.label || shift.name}: ${formatTimeForDisplay(shift.startTime)} - ${formatTimeForDisplay(shift.endTime)}. ${callbacks.readOnly ? "Click for details." : "Click to edit."}`;
   node.setAttribute(
     "aria-label",
     `${shift.name}, ${formatTimeForDisplay(shift.startTime)} to ${formatTimeForDisplay(shift.endTime)}. ${callbacks.readOnly ? "Click for details." : "Click to edit."}`,
   );
-  node.querySelector(".shift-label").textContent = shift.label;
+  node.querySelector(".shift-label").textContent = displayLabel;
 
   if (layout.showShiftTime) {
     node.querySelector(".shift-time").textContent = `${formatTimeForDisplay(shift.startTime)}-${formatTimeForDisplay(shift.endTime)}`;
@@ -472,6 +490,41 @@ function createResizeHandle(edge) {
   handle.dataset.resizeEdge = edge;
   handle.setAttribute("aria-hidden", "true");
   return handle;
+}
+
+function getDisplayShiftLabel(shift, layout, workerCount, layoutShift) {
+  const label = shift.label?.trim() || shift.shiftType || shift.name;
+  const isCramped =
+    layout.viewMode === "compact" ||
+    workerCount >= 12 ||
+    layoutShift.widthPercent < 70;
+
+  if (!isCramped || isCustomLabel(shift, label)) {
+    return label;
+  }
+
+  if (shift.shiftType === "Roving") {
+    return formatRoveSubtypesLabel(shift.roveSubtypes) || label;
+  }
+
+  return CRAMPED_LABELS[shift.shiftType] ?? label;
+}
+
+function isCustomLabel(shift, label) {
+  if (!label) {
+    return false;
+  }
+
+  if (shift.shiftType === "Roving") {
+    const autoLabel = formatRoveSubtypesLabel(shift.roveSubtypes);
+
+    return Boolean(label && label !== autoLabel && !isRovingAutoLabel(label));
+  }
+
+  const presetLabel = SHIFT_TYPE_PRESETS[shift.shiftType]?.label ?? shift.shiftType;
+  const crampedLabel = CRAMPED_LABELS[shift.shiftType];
+
+  return label !== presetLabel && label !== shift.shiftType && label !== crampedLabel;
 }
 
 function layoutOverlappingShifts(shifts, settings) {
