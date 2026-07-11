@@ -265,6 +265,16 @@ export function inferShiftType(shift) {
     return "Check Out";
   }
 
+  if (
+    label === "co/p" ||
+    label === "checkout/project" ||
+    label === "checkout project" ||
+    name === "checkout/project" ||
+    name === "checkout project"
+  ) {
+    return "Checkout/Project";
+  }
+
   if (label === "check in" || name === "check in") {
     return "Check In";
   }

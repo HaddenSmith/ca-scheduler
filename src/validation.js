@@ -4,6 +4,7 @@ import {
   isAllowedScheduleTime,
   minutesToTimeValue,
   normalizeScheduleTimeInput,
+  splitShiftIntoCalendarSegments,
   timeToMinutes,
   timeToDisplayMinutes,
 } from "./timeUtils.js";
@@ -395,6 +396,71 @@ export function findLateNightMorningWarnings(shifts, settings) {
   return warnings;
 }
 
+export function findDeskCoverageGapWarnings(shifts, deskCoverageItems, weekDates, settings = {}) {
+  if (settings.deskCoverageGapWarningEnabled === false) {
+    return [];
+  }
+
+  const requiredStart = timeToMinutes(settings.deskCoverageRequiredStartTime ?? "07:00");
+  let requiredEnd = timeToMinutes(settings.deskCoverageRequiredEndTime ?? "00:00");
+
+  if (requiredEnd <= requiredStart) {
+    requiredEnd += 24 * 60;
+  }
+
+  const deskShifts = shifts.filter((shift) => shift.shiftType === "Desk");
+  const coverageSources = [
+    ...deskShifts,
+    ...(deskCoverageItems ?? []),
+  ];
+  const segmentsByDate = new Map();
+
+  for (const source of coverageSources) {
+    for (const segment of splitShiftIntoCalendarSegments(source)) {
+      const baseDate = source.date;
+      const nextDate = addDays(baseDate, 1);
+
+      addCoverageSegment(segmentsByDate, segment.date, segment.startMinute, segment.endMinute);
+
+      if (segment.date === nextDate) {
+        addCoverageSegment(
+          segmentsByDate,
+          baseDate,
+          segment.startMinute + 24 * 60,
+          segment.endMinute + 24 * 60,
+        );
+      }
+    }
+  }
+
+  const warnings = [];
+
+  for (const date of weekDates) {
+    const intervals = (segmentsByDate.get(date.isoDate) ?? [])
+      .map((interval) => ({
+        start: Math.max(interval.start, requiredStart),
+        end: Math.min(interval.end, requiredEnd),
+      }))
+      .filter((interval) => interval.end > interval.start)
+      .sort((left, right) => left.start - right.start);
+    let cursor = requiredStart;
+
+    for (const interval of intervals) {
+      if (interval.start > cursor) {
+        warnings.push(createDeskGapWarning(date.isoDate, cursor, interval.start));
+      }
+
+      cursor = Math.max(cursor, interval.end);
+    }
+
+    if (cursor < requiredEnd) {
+      warnings.push(createDeskGapWarning(date.isoDate, cursor, requiredEnd));
+    }
+  }
+
+  return warnings;
+}
+
 function addLongShiftWarning(warnings, {
   blockDate,
   blockEnd,
@@ -423,4 +489,19 @@ function isCountedWorkShift(shift, settings) {
     isAllowedScheduleTime(shift.startTime, settings) &&
     isAllowedScheduleTime(shift.endTime, settings)
   );
+}
+
+function addCoverageSegment(segmentsByDate, date, start, end) {
+  const segments = segmentsByDate.get(date) ?? [];
+
+  segments.push({ start, end });
+  segmentsByDate.set(date, segments);
+}
+
+function createDeskGapWarning(date, start, end) {
+  return {
+    date,
+    startTime: minutesToTimeValue(start),
+    endTime: minutesToTimeValue(end),
+  };
 }

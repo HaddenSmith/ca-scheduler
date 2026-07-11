@@ -43,6 +43,7 @@ import { openShiftDetails } from "./shiftDetails.js";
 import { openShiftEditor } from "./shiftEditor.js";
 import {
   findDailyMaxHourWarnings,
+  findDeskCoverageGapWarnings,
   findLateNightMorningWarnings,
   findLongConsecutiveWorkWarnings,
   findPhoneCoverageOverlaps,
@@ -351,6 +352,7 @@ function renderApp(options = {}) {
     schedule.workers,
     schedule.shifts,
     schedule.weekStartDate,
+    schedule.settings,
   );
   const weeklyTotals = calculateWeeklyTotals(schedule.workers, dailyTotals);
 
@@ -944,6 +946,12 @@ function renderScheduleWarnings(container, currentSchedule, dailyTotals = {}, we
     weekDates,
     currentSchedule.settings,
   );
+  const deskCoverageGapWarnings = findDeskCoverageGapWarnings(
+    visibleShifts,
+    currentSchedule.deskCoverage ?? [],
+    weekDates,
+    currentSchedule.settings,
+  );
 
   container.replaceChildren();
   container.hidden =
@@ -952,7 +960,8 @@ function renderScheduleWarnings(container, currentSchedule, dailyTotals = {}, we
     longWorkWarnings.length === 0 &&
     lateMorningWarnings.length === 0 &&
     weeklyMaxWarnings.length === 0 &&
-    dailyMaxWarnings.length === 0;
+    dailyMaxWarnings.length === 0 &&
+    deskCoverageGapWarnings.length === 0;
 
   if (container.hidden) {
     return;
@@ -1010,6 +1019,16 @@ function renderScheduleWarnings(container, currentSchedule, dailyTotals = {}, we
     const warning = document.createElement("p");
 
     warning.textContent = `${phoneOverlaps.length} phone coverage warning${phoneOverlaps.length === 1 ? "" : "s"}: ${visiblePhoneOverlaps.join("; ")}${phoneOverlaps.length > visiblePhoneOverlaps.length ? "; more" : ""}.`;
+    container.append(warning);
+  }
+
+  if (deskCoverageGapWarnings.length > 0) {
+    const visibleDeskGaps = deskCoverageGapWarnings.slice(0, 4).map((gap) => {
+      return `${dateLabels.get(gap.date) ?? gap.date} from ${formatTimeForDisplay(gap.startTime)} to ${formatTimeForDisplay(gap.endTime)}`;
+    });
+    const warning = document.createElement("p");
+
+    warning.textContent = `${deskCoverageGapWarnings.length} desk coverage gap warning${deskCoverageGapWarnings.length === 1 ? "" : "s"}: ${visibleDeskGaps.join("; ")}${deskCoverageGapWarnings.length > visibleDeskGaps.length ? "; more" : ""}.`;
     container.append(warning);
   }
 

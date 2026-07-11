@@ -22,7 +22,7 @@ This is still single-user/local-browser software. There is no backend, Box sync,
 - Create simple daily or weekly repeated shift copies.
 - Multi-select roving subtypes with generated labels and notes.
 - Custom note markers on shift blocks.
-- Shift type presets for Check In, Check Out, Roving, Projects, Staff Meeting, Desk, Class, On Call, Backup On Call, OFF, and Other.
+- Shift type presets for Check In, Check Out, Checkout/Project, Roving, Projects, Staff Meeting, Desk, Class, On Call, Backup On Call, OFF, and Other.
 - Official default colors, editable in Settings. Changing a default color updates existing default-colored blocks while preserving custom colors.
 - Night On Call and Night Backup assignments.
 - Also On Call and Also Backup On Call flags on regular shifts.
@@ -30,7 +30,7 @@ This is still single-user/local-browser software. There is no backend, Box sync,
 - Desk Coverage rail stored separately from worker shifts.
 - Add, edit, delete, drag, resize, duplicate, and repeat Desk Coverage blocks.
 - Daily totals, weekly totals, and weekly hours-by-type summary.
-- Non-blocking warnings for overlap, phone coverage overlap, long consecutive work, late-night into early-morning, weekly max hours, and daily max hours.
+- Non-blocking warnings for overlap, phone coverage overlap, long consecutive work, late-night into early-morning, weekly max hours, daily max hours, and desk coverage gaps.
 - JSON export/import for restoring the full local schedule state, available from Settings -> Data / Backup.
 - Single-computer localStorage autosave in edit mode.
 - Clear Local Autosave and Load Default Schedule controls in Settings -> Data / Backup.
@@ -131,7 +131,7 @@ To share a schedule today, export JSON from Settings -> Data / Backup and upload
 - `src/dragDrop.js`: Pointer-based drag/drop, duplicate, and resize interactions.
 - `src/gridCreate.js`: Empty-grid click and drag-to-create interactions.
 - `src/renderTotals.js`: Daily, weekly, and shift-type totals rendering.
-- `src/hourCalculations.js`: Scheduled hour math.
+- `src/hourCalculations.js`: Scheduled hour math, including week-bounded overnight hour totals.
 - `src/validation.js`: Warning rules.
 - `src/jsonHelpers.js`: JSON import/export helpers.
 - `src/shiftEditor.js`: Add/edit/delete normal shift modal.
@@ -149,5 +149,12 @@ To share a schedule today, export JSON from Settings -> Data / Backup and upload
 - No automatic locking or conflict prevention.
 - No cross-computer sync. Local autosave stays in one browser on one computer.
 - No Excel or PDF export yet.
+
+## Future Work
+
+- Multi-area scheduling support, such as a housing-area dropdown for different BYU housing areas or CA teams.
+- Backend/database or Box/server sync for shared multi-user editing.
+- Role-based editor/viewer access.
+- Automatic locking or conflict prevention once multiple people can edit shared schedule data.
 
 Backend, Box storage, locking, and multi-user workflow should be added in later milestones after the local JSON workflow is stable.

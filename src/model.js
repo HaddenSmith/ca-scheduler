@@ -62,6 +62,9 @@
  * @property {number} maxWeeklyHours
  * @property {boolean} dailyMaxHoursWarningEnabled
  * @property {number} maxDailyHours
+ * @property {boolean} deskCoverageGapWarningEnabled
+ * @property {string} deskCoverageRequiredStartTime
+ * @property {string} deskCoverageRequiredEndTime
  * @property {boolean} viewerWarningsEnabled
  */
 
@@ -80,10 +83,14 @@ export const DEFAULT_SETTINGS = {
   maxWeeklyHours: 40,
   dailyMaxHoursWarningEnabled: true,
   maxDailyHours: 10,
+  deskCoverageGapWarningEnabled: true,
+  deskCoverageRequiredStartTime: "07:00",
+  deskCoverageRequiredEndTime: "00:00",
   viewerWarningsEnabled: true,
   shiftColors: {
     "Check In": "#91cf50",
     "Check Out": "#fed866",
+    "Checkout/Project": "#fed866",
     Roving: "#b52c43",
     Projects: "#c964fb",
     "Staff Meeting": "#c964fb",
@@ -167,6 +174,12 @@ export const SHIFT_TYPE_PRESETS = {
     color: DEFAULT_SHIFT_COLORS["Check Out"],
     countsTowardHours: true,
   },
+  "Checkout/Project": {
+    name: "Checkout/Project",
+    label: "Checkout/Project",
+    color: DEFAULT_SHIFT_COLORS["Checkout/Project"],
+    countsTowardHours: true,
+  },
   Roving: {
     name: "Roving",
     label: "R-3",
@@ -244,6 +257,11 @@ export const SHIFT_KIND_DEFAULTS = {
     color: DEFAULT_SHIFT_COLORS["Check Out"],
     countsTowardHours: true,
   },
+  "Checkout/Project": {
+    name: "Checkout/Project",
+    color: DEFAULT_SHIFT_COLORS["Checkout/Project"],
+    countsTowardHours: true,
+  },
   Roving: {
     name: "Roving",
     color: DEFAULT_SHIFT_COLORS.Roving,
@@ -287,6 +305,14 @@ export const SHIFT_KIND_DEFAULTS = {
 };
 
 export function getDefaultShiftColor(shiftType, settings = {}) {
+  if (shiftType === "Checkout/Project") {
+    return (
+      settings.shiftColors?.["Checkout/Project"] ??
+      settings.shiftColors?.["Check Out"] ??
+      DEFAULT_SHIFT_COLORS["Checkout/Project"]
+    );
+  }
+
   return (
     settings.shiftColors?.[shiftType] ??
     DEFAULT_SHIFT_COLORS[shiftType] ??

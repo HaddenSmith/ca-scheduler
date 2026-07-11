@@ -180,6 +180,9 @@ function normalizeWorkers(value, errors) {
 
 function normalizeSettings(value, warnings) {
   const raw = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const rawShiftColors = raw.shiftColors && typeof raw.shiftColors === "object" && !Array.isArray(raw.shiftColors)
+    ? raw.shiftColors
+    : {};
 
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     warnings.push("Settings were missing or invalid, so defaults were used.");
@@ -190,11 +193,13 @@ function normalizeSettings(value, warnings) {
     ...raw,
     shiftColors: {
       ...DEFAULT_SETTINGS.shiftColors,
-      ...(raw.shiftColors && typeof raw.shiftColors === "object" && !Array.isArray(raw.shiftColors)
-        ? raw.shiftColors
-        : {}),
+      ...rawShiftColors,
     },
   };
+
+  if (!Object.prototype.hasOwnProperty.call(rawShiftColors, "Checkout/Project")) {
+    settings.shiftColors["Checkout/Project"] = settings.shiftColors["Check Out"];
+  }
 
   if (!ALLOWED_SLOT_MINUTES.has(Number(settings.slotMinutes))) {
     warnings.push("Invalid time increment was replaced with 15 minutes.");
@@ -230,6 +235,7 @@ function normalizeSettings(value, warnings) {
   settings.lateNightWarningEnabled = settings.lateNightWarningEnabled !== false;
   settings.weeklyMaxHoursWarningEnabled = settings.weeklyMaxHoursWarningEnabled !== false;
   settings.dailyMaxHoursWarningEnabled = settings.dailyMaxHoursWarningEnabled !== false;
+  settings.deskCoverageGapWarningEnabled = settings.deskCoverageGapWarningEnabled !== false;
   settings.viewerWarningsEnabled = settings.viewerWarningsEnabled !== false;
 
   if (!isPositiveNumber(settings.maxWeeklyHours)) {
@@ -268,6 +274,22 @@ function normalizeSettings(value, warnings) {
   if (!isClockTime(settings.earlyMorningThreshold)) {
     warnings.push("Invalid early-morning threshold was replaced with 8:00 AM.");
     settings.earlyMorningThreshold = DEFAULT_SETTINGS.earlyMorningThreshold;
+  }
+
+  if (!isClockTime(settings.deskCoverageRequiredStartTime)) {
+    warnings.push("Invalid required desk coverage start time was replaced with 7:00 AM.");
+    settings.deskCoverageRequiredStartTime = DEFAULT_SETTINGS.deskCoverageRequiredStartTime;
+  }
+
+  if (!isClockTime(settings.deskCoverageRequiredEndTime)) {
+    warnings.push("Invalid required desk coverage end time was replaced with 12:00 AM.");
+    settings.deskCoverageRequiredEndTime = DEFAULT_SETTINGS.deskCoverageRequiredEndTime;
+  }
+
+  if (timeToMinutes(settings.deskCoverageRequiredStartTime) === timeToMinutes(settings.deskCoverageRequiredEndTime)) {
+    warnings.push("Required desk coverage start and end matched, so default desk coverage hours were used.");
+    settings.deskCoverageRequiredStartTime = DEFAULT_SETTINGS.deskCoverageRequiredStartTime;
+    settings.deskCoverageRequiredEndTime = DEFAULT_SETTINGS.deskCoverageRequiredEndTime;
   }
 
   return settings;
@@ -549,17 +571,24 @@ function isClockTime(value) {
 
 function normalizeSettingsForExport(value) {
   const raw = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const rawShiftColors = raw.shiftColors && typeof raw.shiftColors === "object" && !Array.isArray(raw.shiftColors)
+    ? raw.shiftColors
+    : {};
 
-  return {
+  const settings = {
     ...DEFAULT_SETTINGS,
     ...raw,
     shiftColors: {
       ...DEFAULT_SETTINGS.shiftColors,
-      ...(raw.shiftColors && typeof raw.shiftColors === "object" && !Array.isArray(raw.shiftColors)
-        ? raw.shiftColors
-        : {}),
+      ...rawShiftColors,
     },
   };
+
+  if (!Object.prototype.hasOwnProperty.call(rawShiftColors, "Checkout/Project")) {
+    settings.shiftColors["Checkout/Project"] = settings.shiftColors["Check Out"];
+  }
+
+  return settings;
 }
 
 function isPositiveNumber(value) {

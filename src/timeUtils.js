@@ -1,4 +1,4 @@
-import { formatTimeForDisplay } from "./dateUtils.js";
+import { addDays, formatTimeForDisplay } from "./dateUtils.js";
 
 export function timeToMinutes(time) {
   const [hour, minute] = time.split(":").map(Number);
@@ -123,6 +123,58 @@ export function getShiftDurationHours(shift) {
   }
 
   return Math.max(0, (end - start) / 60);
+}
+
+export function splitShiftIntoCalendarSegments(shift) {
+  if (!shift.date || !shift.startTime || !shift.endTime) {
+    return [];
+  }
+
+  const start = timeToMinutes(shift.startTime);
+  let end = timeToMinutes(shift.endTime);
+  const segments = [];
+
+  if (!Number.isFinite(start) || !Number.isFinite(end)) {
+    return segments;
+  }
+
+  if (end <= start) {
+    end += 24 * 60;
+  }
+
+  for (let cursor = start; cursor < end;) {
+    const dayOffset = Math.floor(cursor / (24 * 60));
+    const dayStart = dayOffset * 24 * 60;
+    const dayEnd = dayStart + 24 * 60;
+    const segmentEnd = Math.min(end, dayEnd);
+
+    segments.push({
+      date: addDays(shift.date, dayOffset),
+      startMinute: cursor - dayStart,
+      endMinute: segmentEnd - dayStart,
+      startTime: minutesToTimeValue(cursor),
+      endTime: minutesToTimeValue(segmentEnd),
+      durationMinutes: segmentEnd - cursor,
+      shift,
+    });
+
+    cursor = segmentEnd;
+  }
+
+  return segments;
+}
+
+export function splitShiftIntoWeekSegments(shift, weekStartDate) {
+  const weekDates = new Set(
+    Array.from({ length: 7 }, (_, index) => addDays(weekStartDate, index)),
+  );
+
+  return splitShiftIntoCalendarSegments(shift)
+    .filter((segment) => weekDates.has(segment.date))
+    .map((segment) => ({
+      ...segment,
+      durationHours: segment.durationMinutes / 60,
+    }));
 }
 
 export function buildTimeTicks(settings) {

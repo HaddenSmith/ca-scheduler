@@ -35,6 +35,7 @@ const VIEW_LAYOUTS = {
 const CRAMPED_LABELS = {
   "Check In": "CI",
   "Check Out": "CO",
+  "Checkout/Project": "CO/P",
   Projects: "P",
   Desk: "D",
   "Staff Meeting": "SM",

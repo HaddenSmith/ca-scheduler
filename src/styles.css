@@ -1439,6 +1439,31 @@ textarea {
   font-weight: 900;
 }
 
+.warning-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.warning-setting-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.warning-setting-card .checkbox-row {
+  align-content: center;
+  font-weight: 900;
+}
+
+.compact-form-grid {
+  gap: 8px;
+}
+
 .settings-actions-section {
   align-items: start;
 }
@@ -1529,6 +1554,7 @@ textarea {
   .weekday-picker,
   .copy-worker-grid,
   .rove-type-options,
+  .warning-settings-grid,
   .color-settings-grid {
     grid-template-columns: 1fr;
   }

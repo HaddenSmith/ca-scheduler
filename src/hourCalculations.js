@@ -1,9 +1,10 @@
 import { buildWeekDates } from "./dateUtils.js";
-import { getShiftDurationHours } from "./timeUtils.js";
+import { getShiftDurationHours, splitShiftIntoWeekSegments } from "./timeUtils.js";
 
 export const WEEKLY_TYPE_COLUMNS = [
   "Check In",
   "Check Out",
+  "Checkout/Project",
   "Desk",
   "Roving",
   "Projects",
@@ -21,7 +22,7 @@ export function getShiftHours(shift) {
   return getShiftDurationHours(shift);
 }
 
-export function calculateDailyTotals(workers, shifts, weekStartDate) {
+export function calculateDailyTotals(workers, shifts, weekStartDate, settings = {}) {
   const weekDates = buildWeekDates(weekStartDate);
   const totals = {};
 
@@ -34,11 +35,17 @@ export function calculateDailyTotals(workers, shifts, weekStartDate) {
   }
 
   for (const shift of shifts) {
-    if (!totals[shift.date] || totals[shift.date][shift.workerId] === undefined) {
+    if (!shift.countsTowardHours) {
       continue;
     }
 
-    totals[shift.date][shift.workerId] += getShiftHours(shift);
+    for (const segment of splitShiftIntoWeekSegments(shift, weekStartDate, settings)) {
+      if (!totals[segment.date] || totals[segment.date][shift.workerId] === undefined) {
+        continue;
+      }
+
+      totals[segment.date][shift.workerId] += segment.durationHours;
+    }
   }
 
   return totals;
@@ -55,7 +62,6 @@ export function calculateWeeklyTotals(workers, dailyTotals) {
 }
 
 export function calculateWeeklyTypeTotals(workers, shifts, weekStartDate) {
-  const weekDates = new Set(buildWeekDates(weekStartDate).map((date) => date.isoDate));
   const totals = {};
 
   for (const worker of workers) {
@@ -63,14 +69,18 @@ export function calculateWeeklyTypeTotals(workers, shifts, weekStartDate) {
   }
 
   for (const shift of shifts) {
-    if (!weekDates.has(shift.date) || !totals[shift.workerId]) {
+    if (!totals[shift.workerId]) {
       continue;
     }
 
-    const duration = getShiftDurationHours(shift);
+    const weekSegments = splitShiftIntoWeekSegments(shift, weekStartDate);
+
+    if (weekSegments.length === 0) {
+      continue;
+    }
 
     if (isPhoneCoverageShift(shift)) {
-      totals[shift.workerId]["On Call / Backup On Call"] += duration;
+      totals[shift.workerId]["On Call / Backup On Call"] += sumSegmentHours(weekSegments);
     }
 
     if (!shift.countsTowardHours) {
@@ -78,11 +88,17 @@ export function calculateWeeklyTypeTotals(workers, shifts, weekStartDate) {
     }
 
     const category = getCountedShiftCategory(shift.shiftType);
-    totals[shift.workerId][category] += duration;
-    totals[shift.workerId]["Total Counted"] += duration;
+    const countedHours = sumSegmentHours(weekSegments);
+
+    totals[shift.workerId][category] += countedHours;
+    totals[shift.workerId]["Total Counted"] += countedHours;
   }
 
   return totals;
+}
+
+function sumSegmentHours(segments) {
+  return segments.reduce((total, segment) => total + segment.durationHours, 0);
 }
 
 export function formatHours(hours) {

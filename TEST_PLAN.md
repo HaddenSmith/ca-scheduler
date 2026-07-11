@@ -50,6 +50,8 @@ Use this checklist before moving toward backend, Box, or server work.
 ## Normal Shifts
 
 - Add a shift from the Add Shift button.
+- Confirm Checkout/Project appears in the shift type dropdown.
+- Confirm Checkout/Project defaults to the Check Out color, counts toward hours, and displays as CO/P when cramped.
 - Click empty grid space to create a shift.
 - Drag empty grid space to create a shift.
 - Click an existing shift to edit it.
@@ -69,6 +71,7 @@ Use this checklist before moving toward backend, Box, or server work.
 - Confirm custom note markers appear only for custom notes.
 - Confirm On Call and Backup On Call shift types hide the extra Also On Call / Also Backup On Call checkboxes.
 - Confirm normal working shift types still show both phone coverage checkboxes.
+- Confirm Checkout/Project works with click-to-create, drag-to-create, edit, delete, drag/drop, resize, repeat, Copy to Workers, autosave, JSON import/export, and viewer mode.
 
 ## Roving
 
@@ -85,6 +88,11 @@ Use this checklist before moving toward backend, Box, or server work.
 - Trigger and verify late-night into early-morning warnings.
 - Trigger and verify weekly max hours warnings.
 - Trigger and verify daily max hours warnings.
+- Trigger and verify desk coverage gap warnings.
+- Confirm full desk coverage by Desk Coverage rail blocks creates no desk gap warning.
+- Confirm full desk coverage by worker Desk shifts creates no desk gap warning.
+- Confirm combined Desk Coverage rail blocks plus worker Desk shifts creates no desk gap warning.
+- Disable the desk coverage gap warning setting and confirm desk gap warnings hide.
 - Disable each warning setting and confirm the matching warning hides.
 - In edit mode, confirm warnings show normally.
 - In viewer mode, confirm warnings show when "Show warnings in Viewer Mode" is enabled.
@@ -95,9 +103,15 @@ Use this checklist before moving toward backend, Box, or server work.
 - Confirm daily totals update after create, edit, delete, drag, and resize.
 - Confirm weekly totals update after create, edit, delete, drag, and resize.
 - Confirm weekly hours-by-type updates.
+- Confirm a counted shift crossing midnight on the last day of the displayed week only counts pre-midnight hours in the current week.
+- Navigate to the next week and confirm the after-midnight portion of that same shift counts there.
+- Change the week start day in Settings and confirm the last-day overnight split respects the custom week boundary.
+- Confirm overnight split hours are not double-counted or lost.
+- Confirm weekly hours-by-type respects the same overnight week split.
 - Confirm standalone On Call and Backup On Call do not count toward total work hours.
 - Confirm Desk Coverage does not count toward worker totals.
 - Confirm Staff Meeting counts toward hours.
+- Confirm Checkout/Project counts toward hours and appears in the weekly hours-by-type summary.
 - Confirm Class and OFF do not count toward hours.
 
 ## Workers
@@ -125,6 +139,7 @@ Use this checklist before moving toward backend, Box, or server work.
 - Confirm Desk Coverage survives JSON export/import.
 - Confirm Desk Coverage is visible but not editable in viewer mode.
 - Confirm Desk Coverage text is readable in the narrow rail.
+- Confirm Desk Coverage gap settings accept normal 12-hour typed times such as 7:00 AM and 12:00 AM.
 
 ## Scroll Preservation
 

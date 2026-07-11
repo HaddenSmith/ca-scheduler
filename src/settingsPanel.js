@@ -5,7 +5,7 @@ import { minutesToTimeValue, parseTimeInput, timeToMinutes } from "./timeUtils.j
 const SLOT_OPTIONS = [15, 30, 60];
 const COLOR_FIELDS = [
   { key: "Check In", label: "Check In" },
-  { key: "Check Out", label: "Check Out" },
+  { key: "Check Out", label: "Check Out / Checkout-Project", linkedKeys: ["Check Out", "Checkout/Project"] },
   { key: "Roving", label: "Roving" },
   { key: "Projects", label: "Projects" },
   { key: "Staff Meeting", label: "Staff Meeting" },
@@ -95,69 +95,91 @@ function createSettingsElements() {
         <datalist id="settings-time-options"></datalist>
 
         <fieldset class="settings-fieldset">
-          <legend>Warnings</legend>
+          <legend>Warning Settings</legend>
 
-          <label class="checkbox-row">
-            <input name="viewerWarningsEnabled" type="checkbox" />
-            <span>Show warnings in Viewer Mode</span>
-          </label>
+          <div class="warning-settings-grid">
+            <section class="warning-setting-card">
+              <label class="checkbox-row">
+                <input name="viewerWarningsEnabled" type="checkbox" />
+                <span>Show warnings in Viewer Mode</span>
+              </label>
+            </section>
 
-          <label class="checkbox-row">
-            <input name="weeklyMaxHoursWarningEnabled" type="checkbox" />
-            <span>Enable weekly max hours warning</span>
-          </label>
+            <section class="warning-setting-card">
+              <label class="checkbox-row">
+                <input name="weeklyMaxHoursWarningEnabled" type="checkbox" />
+                <span>Weekly max hours</span>
+              </label>
+              <label>
+                <span>Max Weekly Hours per Worker</span>
+                <input name="maxWeeklyHours" type="number" min="1" max="168" step="0.25" />
+              </label>
+            </section>
 
-          <div class="form-grid">
-            <label>
-              <span>Max Weekly Hours per Worker</span>
-              <input name="maxWeeklyHours" type="number" min="1" max="168" step="0.25" />
-            </label>
-          </div>
+            <section class="warning-setting-card">
+              <label class="checkbox-row">
+                <input name="dailyMaxHoursWarningEnabled" type="checkbox" />
+                <span>Daily max hours</span>
+              </label>
+              <label>
+                <span>Max Daily Hours per Worker</span>
+                <input name="maxDailyHours" type="number" min="1" max="24" step="0.25" />
+              </label>
+            </section>
 
-          <label class="checkbox-row">
-            <input name="dailyMaxHoursWarningEnabled" type="checkbox" />
-            <span>Enable daily max hours warning</span>
-          </label>
+            <section class="warning-setting-card">
+              <label class="checkbox-row">
+                <input name="longShiftWarningEnabled" type="checkbox" />
+                <span>Long consecutive work</span>
+              </label>
+              <div class="form-grid compact-form-grid">
+                <label>
+                  <span>Max Consecutive Work Hours</span>
+                  <input name="maxConsecutiveWorkHours" type="number" min="1" max="24" step="0.25" />
+                </label>
 
-          <div class="form-grid">
-            <label>
-              <span>Max Daily Hours per Worker</span>
-              <input name="maxDailyHours" type="number" min="1" max="24" step="0.25" />
-            </label>
-          </div>
+                <label>
+                  <span>Required Break Minutes</span>
+                  <input name="requiredBreakMinutes" type="number" min="0" max="240" step="5" />
+                </label>
+              </div>
+            </section>
 
-          <label class="checkbox-row">
-            <input name="longShiftWarningEnabled" type="checkbox" />
-            <span>Enable long-shift warning</span>
-          </label>
+            <section class="warning-setting-card">
+              <label class="checkbox-row">
+                <input name="lateNightWarningEnabled" type="checkbox" />
+                <span>Late-night/morning turnaround</span>
+              </label>
+              <div class="form-grid compact-form-grid">
+                <label>
+                  <span>Late-Night Threshold</span>
+                  <input name="lateNightThreshold" type="text" list="settings-time-options" inputmode="numeric" />
+                </label>
 
-          <div class="form-grid">
-            <label>
-              <span>Max Consecutive Work Hours</span>
-              <input name="maxConsecutiveWorkHours" type="number" min="1" max="24" step="0.25" />
-            </label>
+                <label>
+                  <span>Early-Morning Threshold</span>
+                  <input name="earlyMorningThreshold" type="text" list="settings-time-options" inputmode="numeric" />
+                </label>
+              </div>
+            </section>
 
-            <label>
-              <span>Required Break Minutes</span>
-              <input name="requiredBreakMinutes" type="number" min="0" max="240" step="5" />
-            </label>
-          </div>
+            <section class="warning-setting-card">
+              <label class="checkbox-row">
+                <input name="deskCoverageGapWarningEnabled" type="checkbox" />
+                <span>Desk coverage gaps</span>
+              </label>
+              <div class="form-grid compact-form-grid">
+                <label>
+                  <span>Required Desk Start</span>
+                  <input name="deskCoverageRequiredStartTime" type="text" list="settings-time-options" inputmode="numeric" />
+                </label>
 
-          <label class="checkbox-row">
-            <input name="lateNightWarningEnabled" type="checkbox" />
-            <span>Enable late-night/morning warning</span>
-          </label>
-
-          <div class="form-grid">
-            <label>
-              <span>Late-Night Threshold</span>
-              <input name="lateNightThreshold" type="text" list="settings-time-options" inputmode="numeric" />
-            </label>
-
-            <label>
-              <span>Early-Morning Threshold</span>
-              <input name="earlyMorningThreshold" type="text" list="settings-time-options" inputmode="numeric" />
-            </label>
+                <label>
+                  <span>Required Desk End</span>
+                  <input name="deskCoverageRequiredEndTime" type="text" list="settings-time-options" inputmode="numeric" />
+                </label>
+              </div>
+            </section>
           </div>
         </fieldset>
 
@@ -265,6 +287,9 @@ function populateSettingsForm() {
   getField("lateNightWarningEnabled").checked = settings.lateNightWarningEnabled !== false;
   getField("lateNightThreshold").value = formatTimeForDisplay(settings.lateNightThreshold ?? DEFAULT_SETTINGS.lateNightThreshold);
   getField("earlyMorningThreshold").value = formatTimeForDisplay(settings.earlyMorningThreshold ?? DEFAULT_SETTINGS.earlyMorningThreshold);
+  getField("deskCoverageGapWarningEnabled").checked = settings.deskCoverageGapWarningEnabled !== false;
+  getField("deskCoverageRequiredStartTime").value = formatTimeForDisplay(settings.deskCoverageRequiredStartTime ?? DEFAULT_SETTINGS.deskCoverageRequiredStartTime);
+  getField("deskCoverageRequiredEndTime").value = formatTimeForDisplay(settings.deskCoverageRequiredEndTime ?? DEFAULT_SETTINGS.deskCoverageRequiredEndTime);
 }
 
 function readSettingsForm() {
@@ -273,6 +298,8 @@ function readSettingsForm() {
   const endResult = parseTimeInput(getField("endTime").value);
   const lateNightResult = parseTimeInput(getField("lateNightThreshold").value);
   const earlyMorningResult = parseTimeInput(getField("earlyMorningThreshold").value);
+  const deskCoverageStartResult = parseTimeInput(getField("deskCoverageRequiredStartTime").value);
+  const deskCoverageEndResult = parseTimeInput(getField("deskCoverageRequiredEndTime").value);
   const slotMinutes = Number(getField("slotMinutes").value);
   const weekStartsOn = Number(getField("weekStartsOn").value);
   const maxWeeklyHours = Number(getField("maxWeeklyHours").value);
@@ -324,6 +351,22 @@ function readSettingsForm() {
     errors.push(`Early-morning threshold: ${earlyMorningResult.error}`);
   }
 
+  if (!deskCoverageStartResult.isValid) {
+    errors.push(`Required desk coverage start: ${deskCoverageStartResult.error}`);
+  }
+
+  if (!deskCoverageEndResult.isValid) {
+    errors.push(`Required desk coverage end: ${deskCoverageEndResult.error}`);
+  }
+
+  if (
+    deskCoverageStartResult.isValid &&
+    deskCoverageEndResult.isValid &&
+    timeToMinutes(deskCoverageStartResult.value) === timeToMinutes(deskCoverageEndResult.value)
+  ) {
+    errors.push("Required desk coverage start and end cannot be the same time.");
+  }
+
   const shiftColors = {
     ...DEFAULT_SHIFT_COLORS,
     ...(activeContext.settings.shiftColors ?? {}),
@@ -368,6 +411,13 @@ function readSettingsForm() {
       earlyMorningThreshold: earlyMorningResult.isValid
         ? earlyMorningResult.value
         : activeContext.settings.earlyMorningThreshold,
+      deskCoverageGapWarningEnabled: getField("deskCoverageGapWarningEnabled").checked,
+      deskCoverageRequiredStartTime: deskCoverageStartResult.isValid
+        ? deskCoverageStartResult.value
+        : activeContext.settings.deskCoverageRequiredStartTime,
+      deskCoverageRequiredEndTime: deskCoverageEndResult.isValid
+        ? deskCoverageEndResult.value
+        : activeContext.settings.deskCoverageRequiredEndTime,
       shiftColors,
     },
   };
