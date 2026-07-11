@@ -222,21 +222,31 @@ textarea {
   gap: 6px;
 }
 
-.date-jump-button {
+.secondary-button.date-jump-button {
   display: inline-grid;
   place-items: center;
-  width: 32px;
-  min-height: 30px;
+  width: 34px;
+  height: 34px;
+  min-height: 0;
+  padding: 0;
+  box-sizing: border-box;
+
   border: 1px solid var(--line);
   border-radius: 6px;
-  color: #111a20;
-  background: transparent;
+  color: var(--muted);
+  background: #f4f7f9;
   cursor: pointer;
+
+  transition:
+    color 120ms ease,
+    background-color 120ms ease,
+    border-color 120ms ease;
 }
 
-.date-jump-button:not(:disabled):hover {
+.secondary-button.date-jump-button:not(:disabled):hover {
+  color: #000;
+  background: #fff;
   border-color: var(--line-strong);
-  background: #f8fafb;
 }
 
 .date-jump-button:focus-visible {
@@ -245,13 +255,15 @@ textarea {
 }
 
 .calendar-glyph {
-  display: inline-block;
+  display: block;
   width: 15px;
   height: 14px;
-  flex: 0 0 15px;
+  background-color: currentColor;
 
-  background: center / 15px 14px no-repeat
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15 14'%3E%3Crect x='0.75' y='2.25' width='13.5' height='11' rx='1.5' fill='white' stroke='black' stroke-width='1.5'/%3E%3Cpath d='M1.5 5.25h12' stroke='black' stroke-width='1.5'/%3E%3Cpath d='M4 0.75v3M11 0.75v3' stroke='black' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  --calendar-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15 14'%3E%3Crect x='.75' y='2.25' width='13.5' height='11' rx='1.5' fill='none' stroke='black' stroke-width='1.5'/%3E%3Cpath d='M1.5 5.25h12' stroke='black' stroke-width='1.5'/%3E%3Cpath d='M4 .75v3M11 .75v3' stroke='black' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+
+  -webkit-mask: var(--calendar-icon) center / contain no-repeat;
+  mask: var(--calendar-icon) center / contain no-repeat;
 }
 
 .date-jump-input {
@@ -261,6 +273,31 @@ textarea {
   margin: 0;
   opacity: 0;
   pointer-events: none;
+}
+
+.settings-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  box-sizing: border-box;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.settings-glyph {
+  display: block;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  background-color: currentColor;
+
+  --settings-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='2 2 20 20'%3E%3Cpath fill='black' d='M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.07-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.05 7.05 0 0 0-1.62-.94L14.38 2.8a.5.5 0 0 0-.5-.4h-3.84a.5.5 0 0 0-.5.4l-.36 2.52c-.58.24-1.12.55-1.62.94L5.17 5.3a.5.5 0 0 0-.61.22L2.64 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.05.31-.07.64-.07.94s.02.63.07.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .61.22l2.39-.96c.5.39 1.04.7 1.62.94l.36 2.52a.5.5 0 0 0 .5.4h3.84a.5.5 0 0 0 .5-.4l.36-2.52c.58-.24 1.12-.55 1.62-.94l2.39.96a.5.5 0 0 0 .61-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.02-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z'/%3E%3C/svg%3E");
+
+  -webkit-mask: var(--settings-icon) center / 70% no-repeat;
+  mask: var(--settings-icon) center / 70% no-repeat;
 }
 
 .segmented-control {
@@ -1573,6 +1610,177 @@ textarea {
   background: #f7fafb;
 }
 
+
+
+/* =========================================================
+   Uniform toolbar and modal action buttons
+   ========================================================= */
+
+:root {
+  --button-height: 34px;
+  --button-radius: 6px;
+  --button-speed: 120ms ease;
+  --button-focus: rgb(15 107 120 / 30%);
+  --danger-focus: rgb(199 65 54 / 28%);
+}
+
+/* All standard action buttons share sizing and motion. */
+.primary-button,
+.secondary-button,
+.danger-button,
+.subtle-danger-button {
+  min-height: var(--button-height);
+  border-radius: var(--button-radius);
+  cursor: pointer;
+  transition:
+    color var(--button-speed),
+    background-color var(--button-speed),
+    border-color var(--button-speed),
+    box-shadow var(--button-speed),
+    filter var(--button-speed),
+    transform var(--button-speed);
+}
+
+/* Primary actions: Save, Confirm, Create. */
+.primary-button {
+  border: 1px solid var(--accent);
+  color: #fff;
+  background: var(--accent);
+}
+
+.primary-button:not(:disabled):hover {
+  filter: brightness(0.92);
+  box-shadow: 0 1px 3px rgb(15 32 42 / 18%);
+}
+
+.primary-button:not(:disabled):active {
+  filter: brightness(0.86);
+  transform: translateY(1px);
+}
+
+/* Secondary actions: Cancel, Manage, Import, Export, navigation. */
+.secondary-button {
+  border: 1px solid var(--line);
+  color: var(--muted);
+  background: #f4f7f9;
+}
+
+.secondary-button:not(:disabled):hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(18 32 42 / 10%);
+}
+
+.secondary-button:not(:disabled):active {
+  background: #e9eef2;
+  transform: translateY(1px);
+}
+
+/* Destructive actions: Delete, clear autosave, load defaults, reset. */
+.danger-button,
+.subtle-danger-button {
+  border: 1px solid #c74136;
+  color: #9c241b;
+  background: #fff0ee;
+}
+
+.danger-button:not(:disabled):hover,
+.subtle-danger-button:not(:disabled):hover {
+  border-color: #9c241b;
+  color: #fff;
+  background: #c74136;
+  box-shadow: 0 1px 3px rgb(156 36 27 / 18%);
+}
+
+.danger-button:not(:disabled):active,
+.subtle-danger-button:not(:disabled):active {
+  background: #a93229;
+  transform: translateY(1px);
+}
+
+/* Consistent keyboard focus. */
+.primary-button:focus-visible,
+.secondary-button:focus-visible {
+  outline: 3px solid var(--button-focus);
+  outline-offset: 2px;
+}
+
+.danger-button:focus-visible,
+.subtle-danger-button:focus-visible {
+  outline: 3px solid var(--danger-focus);
+  outline-offset: 2px;
+}
+
+/* Consistent disabled state. */
+.primary-button:disabled,
+.secondary-button:disabled,
+.danger-button:disabled,
+.subtle-danger-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+  filter: none;
+  transform: none;
+}
+
+/* Toolbar buttons use the same 34px height and hover language. */
+.toolbar-actions button {
+  cursor: pointer;
+  transition:
+    color var(--button-speed),
+    background-color var(--button-speed),
+    border-color var(--button-speed),
+    box-shadow var(--button-speed),
+    filter var(--button-speed),
+    transform var(--button-speed);
+}
+
+.toolbar .week-navigation > .secondary-button {
+  min-height: 34px;
+}
+
+.toolbar .week-navigation .date-jump-button,
+.toolbar .admin-actions .settings-button {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: #f4f7f9;
+}
+
+.toolbar .week-navigation > .secondary-button:not(:disabled):hover,
+.toolbar .admin-actions .settings-button:not(:disabled):hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(18 32 42 / 10%);
+}
+
+/* Inactive view button highlights; selected view stays teal. */
+.segmented-control button:not([aria-pressed="true"]):not(:disabled):hover {
+  color: var(--text);
+  background: #f8fafb;
+}
+
+.segmented-control button[aria-pressed="true"]:not(:disabled):hover {
+  filter: brightness(0.92);
+}
+
+.segmented-control button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.toolbar-actions button:focus-visible {
+  outline: 3px solid var(--button-focus);
+  outline-offset: 2px;
+}
+
 @media (max-width: 820px) {
   .app-shell {
     width: min(100% - 20px, 1500px);
@@ -1639,4 +1847,34 @@ textarea {
     display: grid;
     width: 100%;
   }
+}
+
+.shift-editor-header .icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  line-height: 1;
+  cursor: pointer;
+
+  transition:
+    color 120ms ease,
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.shift-editor-header .icon-button:hover {
+  color: var(--text);
+  background: #f4f7f9;
+  border-color: var(--line-strong);
+}
+
+.shift-editor-header .icon-button:focus-visible {
+  outline: 3px solid rgb(15 107 120 / 30%);
+  outline-offset: 2px;
+}
+
+.shift-editor-header .icon-button {
+  padding-bottom: 3px;
 }
