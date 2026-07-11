@@ -431,6 +431,7 @@ function renderColorFields(settings) {
     const label = document.createElement("label");
     const text = document.createElement("span");
     const input = document.createElement("input");
+    input.className = "secondary-button";
     const resetButton = document.createElement("button");
 
     row.className = "color-setting-row";

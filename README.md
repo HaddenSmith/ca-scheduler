@@ -157,6 +157,7 @@ To share a schedule today, export JSON from Settings -> Data / Backup and upload
 ## Future Work
 
 - Multi-area scheduling support, such as a housing-area dropdown for different BYU housing areas or CA teams.
+- Undo/Ctrl+Z support for recent edits, moves, copies, repeats, deletes, and Desk Coverage changes.
 - Backend/database or Box/server sync for shared multi-user editing.
 - Role-based editor/viewer access.
 - Automatic locking or conflict prevention once multiple people can edit shared schedule data.

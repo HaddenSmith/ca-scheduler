@@ -349,6 +349,48 @@ textarea {
   margin-top: 4px;
 }
 
+.warning-group + .warning-group {
+  margin-top: 6px;
+}
+
+.warning-group p {
+  margin: 0;
+}
+
+.warning-group-toggle {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+}
+
+.warning-group-toggle:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.warning-group-toggle:focus-visible {
+  outline: 3px solid rgb(159 102 0 / 28%);
+  outline-offset: 2px;
+}
+
+.warning-list {
+  margin: 6px 0 0 18px;
+  padding-left: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.warning-list li + li {
+  margin-top: 4px;
+}
+
 .summary-section {
   display: grid;
   grid-template-columns: minmax(180px, 240px) 1fr;

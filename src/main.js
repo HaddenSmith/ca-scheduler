@@ -1054,81 +1054,131 @@ function renderScheduleWarnings(container, currentSchedule, dailyTotals = {}, we
       `${date.dayName}, ${date.displayDate}`,
     ]),
   );
+  const shiftLookup = new Map(visibleShifts.map((shift) => [shift.id, shift]));
+  const warningGroups = [
+    {
+      title: "Shift overlaps",
+      warnings: overlaps.map((overlap) => {
+        const overlappingShifts = overlap.shiftIds
+          .map((shiftId) => shiftLookup.get(shiftId))
+          .filter(Boolean);
+        const overlapDetails = overlappingShifts.length > 0
+          ? ` (${overlappingShifts.map(formatCompactShiftReference).join(" and ")})`
+          : "";
 
-  if (overlaps.length > 0) {
-    const visibleOverlaps = overlaps.slice(0, 3).map((overlap) => {
-      return `${workerNames.get(overlap.workerId) ?? "Unknown worker"} on ${dateLabels.get(overlap.date) ?? overlap.date}`;
-    });
-    const warning = document.createElement("p");
+        return `${workerNames.get(overlap.workerId) ?? "Unknown worker"} has overlapping shifts on ${dateLabels.get(overlap.date) ?? overlap.date}${overlapDetails}`;
+      }),
+    },
+    {
+      title: "Weekly max hours",
+      warnings: weeklyMaxWarnings.map((warning) => {
+        return `${warning.workerName} is scheduled for ${warning.hours.toFixed(2)} hours this week, which exceeds the ${warning.limit} hour limit`;
+      }),
+    },
+    {
+      title: "Daily max hours",
+      warnings: dailyMaxWarnings.map((warning) => {
+        return `${warning.workerName} is scheduled for ${warning.hours.toFixed(2)} counted hours on ${dateLabels.get(warning.date) ?? warning.date}, which exceeds the ${warning.limit} hour daily limit`;
+      }),
+    },
+    {
+      title: "Phone/on-call overlaps",
+      warnings: phoneOverlaps.map((overlap) => {
+        const workerLabel = overlap.workerIds.map((workerId) => {
+          return workerNames.get(workerId) ?? "Unknown worker";
+        }).join(" and ");
+        const roleLabel = overlap.role === "primary" ? "Primary on-call" : "Backup on-call";
 
-    warning.textContent = `${overlaps.length} shift overlap warning${overlaps.length === 1 ? "" : "s"}: ${visibleOverlaps.join("; ")}${overlaps.length > visibleOverlaps.length ? "; more" : ""}.`;
-    container.append(warning);
+        return `${roleLabel} overlaps on ${dateLabels.get(overlap.date) ?? overlap.date} (${workerLabel}, ${formatTimeForDisplay(overlap.startTime)}-${formatTimeForDisplay(overlap.endTime)})`;
+      }),
+    },
+    {
+      title: "Desk coverage gaps",
+      warnings: deskCoverageGapWarnings.map((gap) => {
+        return `Desk coverage gap on ${dateLabels.get(gap.date) ?? gap.date} from ${formatTimeForDisplay(gap.startTime)} to ${formatTimeForDisplay(gap.endTime)}`;
+      }),
+    },
+    {
+      title: "Long consecutive work",
+      warnings: longWorkWarnings.map((warning) => {
+        return `${workerNames.get(warning.workerId) ?? "Unknown worker"} works ${warning.hours.toFixed(2)} consecutive hours on ${dateLabels.get(warning.date) ?? warning.date} (${formatTimeForDisplay(warning.startTime)}-${formatTimeForDisplay(warning.endTime)})`;
+      }),
+    },
+    {
+      title: "Late-night/morning turnaround",
+      warnings: lateMorningWarnings.map((warning) => {
+        return `${workerNames.get(warning.workerId) ?? "Unknown worker"} works late on ${dateLabels.get(warning.lateDate) ?? warning.lateDate} until ${formatTimeForDisplay(warning.lateEndTime)} and starts again ${dateLabels.get(warning.nextDate) ?? warning.nextDate} at ${formatTimeForDisplay(warning.earlyStartTime)}`;
+      }),
+    },
+  ].filter((group) => group.warnings.length > 0);
+
+  for (const group of warningGroups) {
+    appendWarningGroup(container, group);
+  }
+}
+
+function appendWarningGroup(container, { title, warnings }) {
+  const group = document.createElement("section");
+  group.className = "warning-group";
+
+  if (warnings.length === 1) {
+  group.classList.add("is-single");
+
+  const warning = document.createElement("p");
+  warning.textContent = `• ${title}: ${ensureSentence(warnings[0])}`;
+  group.append(warning);
+  container.append(group);
+  return;
+}
+
+  const button = document.createElement("button");
+  const list = document.createElement("ul");
+  const listId = `warning-list-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+
+  button.type = "button";
+  button.className = "warning-group-toggle";
+  button.setAttribute("aria-controls", listId);
+
+  list.id = listId;
+  list.className = "warning-list";
+
+  for (const warningText of warnings) {
+    const item = document.createElement("li");
+    item.textContent = ensureSentence(warningText);
+    list.append(item);
   }
 
-  if (weeklyMaxWarnings.length > 0) {
-    const visibleWeeklyWarnings = weeklyMaxWarnings.slice(0, 3).map((warning) => {
-      return `${warning.workerName} is scheduled for ${warning.hours.toFixed(2)} hours this week, which exceeds the ${warning.limit} hour limit`;
-    });
-    const warning = document.createElement("p");
+  const setExpanded = (isExpanded) => {
+    button.setAttribute("aria-expanded", String(isExpanded));
+    group.classList.toggle("is-expanded", isExpanded);
+    list.hidden = !isExpanded;
+    button.textContent = isExpanded
+      ? `v ${title}`
+      : `> ${title}: ${ensureSentence(warnings[0])} + ${warnings.length - 1} more`;
+  };
 
-    warning.textContent = `${weeklyMaxWarnings.length} weekly hours warning${weeklyMaxWarnings.length === 1 ? "" : "s"}: ${visibleWeeklyWarnings.join("; ")}${weeklyMaxWarnings.length > visibleWeeklyWarnings.length ? "; more" : ""}.`;
-    container.append(warning);
+  button.addEventListener("click", () => {
+    setExpanded(button.getAttribute("aria-expanded") !== "true");
+  });
+
+  setExpanded(false);
+  group.append(button, list);
+  container.append(group);
+}
+
+function formatCompactShiftReference(shift) {
+  const label = shift.label || shift.shiftType || "Shift";
+  return `${label} ${formatTimeForDisplay(shift.startTime)}-${formatTimeForDisplay(shift.endTime)}`;
+}
+
+function ensureSentence(value) {
+  const text = String(value ?? "").trim();
+
+  if (!text || /[.!?]$/.test(text)) {
+    return text;
   }
 
-  if (dailyMaxWarnings.length > 0) {
-    const visibleDailyWarnings = dailyMaxWarnings.slice(0, 3).map((warning) => {
-      return `${warning.workerName} is scheduled for ${warning.hours.toFixed(2)} counted hours on ${dateLabels.get(warning.date) ?? warning.date}, which exceeds the ${warning.limit} hour daily limit`;
-    });
-    const warning = document.createElement("p");
-
-    warning.textContent = `${dailyMaxWarnings.length} daily hours warning${dailyMaxWarnings.length === 1 ? "" : "s"}: ${visibleDailyWarnings.join("; ")}${dailyMaxWarnings.length > visibleDailyWarnings.length ? "; more" : ""}.`;
-    container.append(warning);
-  }
-
-  if (phoneOverlaps.length > 0) {
-    const visiblePhoneOverlaps = phoneOverlaps.slice(0, 3).map((overlap) => {
-      const workerLabel = overlap.workerIds.map((workerId) => {
-        return workerNames.get(workerId) ?? "Unknown worker";
-      }).join(" and ");
-      const roleLabel = overlap.role === "primary" ? "Primary on-call" : "Backup on-call";
-
-      return `${roleLabel} overlaps on ${dateLabels.get(overlap.date) ?? overlap.date} (${workerLabel}, ${formatTimeForDisplay(overlap.startTime)}-${formatTimeForDisplay(overlap.endTime)})`;
-    });
-    const warning = document.createElement("p");
-
-    warning.textContent = `${phoneOverlaps.length} phone coverage warning${phoneOverlaps.length === 1 ? "" : "s"}: ${visiblePhoneOverlaps.join("; ")}${phoneOverlaps.length > visiblePhoneOverlaps.length ? "; more" : ""}.`;
-    container.append(warning);
-  }
-
-  if (deskCoverageGapWarnings.length > 0) {
-    const visibleDeskGaps = deskCoverageGapWarnings.slice(0, 4).map((gap) => {
-      return `${dateLabels.get(gap.date) ?? gap.date} from ${formatTimeForDisplay(gap.startTime)} to ${formatTimeForDisplay(gap.endTime)}`;
-    });
-    const warning = document.createElement("p");
-
-    warning.textContent = `${deskCoverageGapWarnings.length} desk coverage gap warning${deskCoverageGapWarnings.length === 1 ? "" : "s"}: ${visibleDeskGaps.join("; ")}${deskCoverageGapWarnings.length > visibleDeskGaps.length ? "; more" : ""}.`;
-    container.append(warning);
-  }
-
-  if (longWorkWarnings.length > 0) {
-    const visibleLongWarnings = longWorkWarnings.slice(0, 3).map((warning) => {
-      return `${workerNames.get(warning.workerId) ?? "Unknown worker"} on ${dateLabels.get(warning.date) ?? warning.date} (${formatTimeForDisplay(warning.startTime)}-${formatTimeForDisplay(warning.endTime)}, ${warning.hours.toFixed(2)} hours)`;
-    });
-    const warning = document.createElement("p");
-
-    warning.textContent = `${longWorkWarnings.length} long consecutive work warning${longWorkWarnings.length === 1 ? "" : "s"}: ${visibleLongWarnings.join("; ")}${longWorkWarnings.length > visibleLongWarnings.length ? "; more" : ""}.`;
-    container.append(warning);
-  }
-
-  if (lateMorningWarnings.length > 0) {
-    const visibleLateWarnings = lateMorningWarnings.slice(0, 3).map((warning) => {
-      return `${workerNames.get(warning.workerId) ?? "Unknown worker"} works late on ${dateLabels.get(warning.lateDate) ?? warning.lateDate} until ${formatTimeForDisplay(warning.lateEndTime)} and starts again ${dateLabels.get(warning.nextDate) ?? warning.nextDate} at ${formatTimeForDisplay(warning.earlyStartTime)}`;
-    });
-    const warning = document.createElement("p");
-
-    warning.textContent = `${lateMorningWarnings.length} late-night/morning warning${lateMorningWarnings.length === 1 ? "" : "s"}: ${visibleLateWarnings.join("; ")}${lateMorningWarnings.length > visibleLateWarnings.length ? "; more" : ""}.`;
-    container.append(warning);
-  }
+  return `${text}.`;
 }
 
 initializeApp();

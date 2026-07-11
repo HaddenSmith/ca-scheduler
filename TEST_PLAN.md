@@ -104,6 +104,11 @@ Use this checklist before moving toward backend, Box, or server work.
 - Trigger and verify weekly max hours warnings.
 - Trigger and verify daily max hours warnings.
 - Trigger and verify desk coverage gap warnings.
+- Confirm one warning in a category displays as a clean single-line grouped warning.
+- Confirm multiple warnings in a category collapse by default with the first warning and a "+ N more" summary.
+- Expand a multi-warning category and confirm every warning appears as an indented bullet item.
+- Collapse the expanded warning category and confirm the extra warning details hide again.
+- Confirm desk coverage gaps, daily max hours, weekly max hours, normal overlaps, and phone/on-call overlaps each group under the correct heading.
 - Confirm full desk coverage by Desk Coverage rail blocks creates no desk gap warning.
 - Confirm full desk coverage by worker Desk shifts creates no desk gap warning.
 - Confirm combined Desk Coverage rail blocks plus worker Desk shifts creates no desk gap warning.
