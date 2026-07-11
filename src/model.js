@@ -109,12 +109,14 @@ export const DEFAULT_SHIFT_COLORS = DEFAULT_SETTINGS.shiftColors;
 export const EDITABLE_SHIFT_COLOR_KEYS = [
   "Check In",
   "Check Out",
+  "Checkout/Project",
   "Roving",
   "Projects",
   "Staff Meeting",
   "Desk",
   "Class",
   "On Call",
+  "Backup On Call",
   "Desk Coverage",
   "OFF",
 ];

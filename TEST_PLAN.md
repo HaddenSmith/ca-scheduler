@@ -11,12 +11,25 @@ Use this checklist before moving toward backend, Box, or server work.
 - Switch between Detailed Day View and Compact Week View.
 - Use Previous Week, Next Week, and Today.
 - In Detailed Day View, click Today and confirm the page scrolls to today's day section.
+- Use the date-jump button, choose a date, and confirm the displayed week changes to the week containing that date.
+- In Detailed Day View, confirm date jump scrolls to the selected date's day section.
+- In Compact Week View, confirm date jump changes the week without disrupting the compact layout.
+- Change the week start day and confirm date jump respects the custom week boundary.
 - Open Settings, change a harmless setting, save, and confirm the schedule re-renders.
-- Confirm the main toolbar only shows Previous Week, Today, Next Week, Detailed Day View, Compact Week View, and Settings.
+- Confirm the main toolbar only shows Previous Week, Today, date jump, Next Week, Detailed Day View, Compact Week View, and Settings.
 - Confirm the toolbar remains compact on desktop and stacks cleanly on narrow screens.
 - Confirm Manage Workers, Import JSON, Export JSON, Clear Local Autosave, and Load Default Schedule are available from Settings instead of the main toolbar.
+- Confirm Check Out and Checkout/Project have separate color settings.
+- Change the Check Out color and confirm Checkout/Project does not change.
+- Change the Checkout/Project color and confirm Check Out does not change.
 - Change a shift color default in Settings and confirm existing default-colored shifts update.
 - Change a shift color default in Settings and confirm custom-colored shifts are preserved.
+- Click a single color reset button and confirm only that color input resets.
+- Save after a color reset and confirm matching default-colored shifts update while custom-colored shifts are preserved.
+- Export and import JSON and confirm separate Check Out and Checkout/Project colors are preserved.
+- Import older JSON without a Checkout/Project color and confirm Checkout/Project safely defaults to the Check Out color.
+- Confirm success/info status messages auto-dismiss after about 15 seconds.
+- Confirm error status messages and scheduling warnings do not auto-dismiss.
 - Confirm Detailed Day View is usable with around 12 workers plus Desk Coverage on a normal desktop screen.
 - Confirm too-small screens scroll horizontally instead of making worker columns unreadable.
 
@@ -68,7 +81,9 @@ Use this checklist before moving toward backend, Box, or server work.
 - Confirm custom labels are preserved.
 - Confirm changing shift type updates default labels only when appropriate.
 - Confirm compact/cramped blocks show abbreviations for default labels without changing the saved label.
-- Confirm custom note markers appear only for custom notes.
+- Confirm custom note exclamation markers appear only for custom notes.
+- Confirm auto-generated roving notes do not show the custom note marker.
+- Confirm Viewer Mode still shows custom note markers and read-only notes details.
 - Confirm On Call and Backup On Call shift types hide the extra Also On Call / Also Backup On Call checkboxes.
 - Confirm normal working shift types still show both phone coverage checkboxes.
 - Confirm Checkout/Project works with click-to-create, drag-to-create, edit, delete, drag/drop, resize, repeat, Copy to Workers, autosave, JSON import/export, and viewer mode.

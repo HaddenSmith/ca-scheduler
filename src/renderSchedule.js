@@ -369,11 +369,7 @@ function renderDeskCoverageBlock(layoutCoverage, settings, layout, callbacks) {
   node.append(time);
 
   if (coverage.notes?.trim()) {
-    const noteMarker = document.createElement("span");
-    noteMarker.className = "shift-note-marker";
-    noteMarker.textContent = "*";
-    noteMarker.title = "Desk coverage notes";
-    node.append(noteMarker);
+    node.append(createNoteMarker("Desk coverage notes"));
   }
 
   if (callbacks.readOnly) {
@@ -459,11 +455,7 @@ function renderShiftBlock(layoutShift, settings, layout, callbacks, workerCount)
   }
 
   if (hasCustomShiftNotes(shift)) {
-    const noteMarker = document.createElement("span");
-    noteMarker.className = "shift-note-marker";
-    noteMarker.textContent = "*";
-    noteMarker.title = "Special notes";
-    node.append(noteMarker);
+    node.append(createNoteMarker("Custom notes"));
   }
 
   if (!shift.countsTowardHours) {
@@ -491,6 +483,18 @@ function createResizeHandle(edge) {
   handle.dataset.resizeEdge = edge;
   handle.setAttribute("aria-hidden", "true");
   return handle;
+}
+
+function createNoteMarker(label) {
+  const marker = document.createElement("span");
+
+  marker.className = "shift-note-marker";
+  marker.textContent = "!";
+  marker.title = label;
+  marker.setAttribute("aria-label", label);
+  marker.setAttribute("role", "img");
+
+  return marker;
 }
 
 function getDisplayShiftLabel(shift, layout, workerCount, layoutShift) {

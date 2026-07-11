@@ -4,11 +4,15 @@ A static web app for building Conference Assistant schedules in a Saturday-Frida
 
 This is still single-user/local-browser software. There is no backend, Box sync, database, authentication, real-time collaboration, or automatic file locking yet.
 
+## Disclosure
+
+This project was designed and directed by Hadden Smith for the BYU Helaman Halls Conference Assistant scheduling workflow. The implementation code was generated with AI assistance through iterative prompting, testing, and refinement. Hadden provided the product requirements, workflow design, testing feedback, and feature direction. Because the code was AI-generated, it should be reviewed before production or institution-wide deployment. This project is not being presented as hand-coded from scratch.
+
 ## Current Features
 
 - Detailed Day View for editing larger day tables.
 - Compact Week View for scanning most of the week at once.
-- Week navigation with Previous Week, Today, and Next Week.
+- Week navigation with Previous Week, Today, Next Week, and date jump.
 - Today scrolls to the current date in Detailed Day View.
 - Worker columns under each day, with stable worker IDs.
 - Settings panel with schedule, warning, color, worker, and data/backup sections.
@@ -23,7 +27,7 @@ This is still single-user/local-browser software. There is no backend, Box sync,
 - Multi-select roving subtypes with generated labels and notes.
 - Custom note markers on shift blocks.
 - Shift type presets for Check In, Check Out, Checkout/Project, Roving, Projects, Staff Meeting, Desk, Class, On Call, Backup On Call, OFF, and Other.
-- Official default colors, editable in Settings. Changing a default color updates existing default-colored blocks while preserving custom colors.
+- Official default colors, editable and resettable in Settings. Changing a default color updates existing default-colored blocks while preserving custom colors.
 - Night On Call and Night Backup assignments.
 - Also On Call and Also Backup On Call flags on regular shifts.
 - Standalone On Call and Backup On Call shift types that do not count toward work hours.

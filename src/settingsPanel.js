@@ -5,15 +5,17 @@ import { minutesToTimeValue, parseTimeInput, timeToMinutes } from "./timeUtils.j
 const SLOT_OPTIONS = [15, 30, 60];
 const COLOR_FIELDS = [
   { key: "Check In", label: "Check In" },
-  { key: "Check Out", label: "Check Out / Checkout-Project", linkedKeys: ["Check Out", "Checkout/Project"] },
+  { key: "Check Out", label: "Check Out" },
+  { key: "Checkout/Project", label: "Checkout/Project" },
   { key: "Roving", label: "Roving" },
   { key: "Projects", label: "Projects" },
   { key: "Staff Meeting", label: "Staff Meeting" },
   { key: "Desk", label: "Desk" },
   { key: "Class", label: "Class" },
-  { key: "On Call", label: "On Call / Backup On Call", linkedKeys: ["On Call", "Backup On Call"] },
-  { key: "Desk Coverage", label: "Desk Coverage" },
   { key: "OFF", label: "OFF" },
+  { key: "On Call", label: "On Call" },
+  { key: "Backup On Call", label: "Backup On Call" },
+  { key: "Desk Coverage", label: "Desk Coverage" },
 ];
 
 let settingsElements;
@@ -375,9 +377,7 @@ function readSettingsForm() {
   for (const field of COLOR_FIELDS) {
     const color = getField(`color-${field.key}`).value;
 
-    for (const key of field.linkedKeys ?? [field.key]) {
-      shiftColors[key] = color;
-    }
+    shiftColors[field.key] = color;
   }
 
   return {
@@ -427,17 +427,30 @@ function renderColorFields(settings) {
   settingsElements.colorGrid.replaceChildren();
 
   for (const field of COLOR_FIELDS) {
+    const row = document.createElement("div");
     const label = document.createElement("label");
     const text = document.createElement("span");
     const input = document.createElement("input");
+    const resetButton = document.createElement("button");
 
+    row.className = "color-setting-row";
     text.textContent = field.label;
     input.name = `color-${field.key}`;
     input.type = "color";
     input.value = settings.shiftColors?.[field.key] ?? DEFAULT_SHIFT_COLORS[field.key];
+    resetButton.className = "color-reset-button";
+    resetButton.type = "button";
+    resetButton.textContent = "↻";
+    resetButton.title = `Reset ${field.label} color`;
+    resetButton.setAttribute("aria-label", `Reset ${field.label} color to default`);
+    resetButton.addEventListener("click", () => {
+      input.value = DEFAULT_SHIFT_COLORS[field.key];
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
 
     label.append(text, input);
-    settingsElements.colorGrid.append(label);
+    row.append(label, resetButton);
+    settingsElements.colorGrid.append(row);
   }
 }
 

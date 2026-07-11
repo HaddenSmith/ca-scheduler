@@ -53,8 +53,11 @@ import {
 import { openWorkerManager } from "./workerManager.js";
 
 const DEFAULT_SCHEDULE_URL = "./data/default-schedule.json";
+const STATUS_AUTO_DISMISS_MS = 15000;
+const AUTO_DISMISS_STATUS_TONES = new Set(["success", "info"]);
 
 let schedule = structuredClone(sampleSchedule);
+let fileStatusTimer = null;
 const state = {
   hasLocalAutosave: false,
   hasUnexportedChanges: false,
@@ -78,6 +81,8 @@ const exportReminder = getRequiredElement("#export-reminder");
 const adminActionsGroup = getOptionalElement(".admin-actions");
 const previousWeekButton = getRequiredElement(".previous-week-button");
 const currentWeekButton = getRequiredElement(".current-week-button");
+const dateJumpButton = getOptionalElement(".date-jump-button");
+const dateJumpInput = getOptionalElement("#date-jump-input");
 const nextWeekButton = getRequiredElement(".next-week-button");
 const viewerModeIndicator = getOptionalElement("[data-viewer-mode-indicator]");
 const viewModeButtons = getRequiredElements("button[data-view-mode]");
@@ -92,6 +97,8 @@ for (const button of viewModeButtons) {
 addOptionalListener(importJsonInput, "change", handleImportFile);
 
 addOptionalListener(settingsButton, "click", handleSettingsAction);
+addOptionalListener(dateJumpButton, "click", handleDateJumpRequest);
+addOptionalListener(dateJumpInput, "change", handleDateJumpChange);
 
 async function handleSettingsAction() {
   if (state.readOnly) {
@@ -207,14 +214,52 @@ nextWeekButton.addEventListener("click", () => {
 });
 
 currentWeekButton.addEventListener("click", () => {
+  const today = getTodayIsoDate();
+
   commitScheduleState({
     ...schedule,
-    weekStartDate: getWeekStartDate(getTodayIsoDate(), schedule.settings.weekStartsOn),
+    weekStartDate: getWeekStartDate(today, schedule.settings.weekStartsOn),
   }, {
     preserveScroll: false,
-    scrollToToday: state.viewMode === "detailed",
+    scrollToDate: state.viewMode === "detailed" ? today : "",
   });
 });
+
+function handleDateJumpRequest() {
+  if (!dateJumpInput) {
+    return;
+  }
+
+  dateJumpInput.value ||= getTodayIsoDate();
+
+  if (typeof dateJumpInput.showPicker === "function") {
+    try {
+      dateJumpInput.showPicker();
+      return;
+    } catch {
+      // Fall back to focus/click below if the browser refuses showPicker.
+    }
+  }
+
+  dateJumpInput.focus();
+  dateJumpInput.click();
+}
+
+function handleDateJumpChange() {
+  const selectedDate = dateJumpInput?.value;
+
+  if (!isIsoDateValue(selectedDate)) {
+    return;
+  }
+
+  commitScheduleState({
+    ...schedule,
+    weekStartDate: getWeekStartDate(selectedDate, schedule.settings.weekStartsOn),
+  }, {
+    preserveScroll: false,
+    scrollToDate: state.viewMode === "detailed" ? selectedDate : "",
+  });
+}
 
 window.addEventListener("beforeunload", (event) => {
   if (!state.readOnly && state.hasUnexportedChanges) {
@@ -345,6 +390,7 @@ async function handleLoadDefaultSchedule() {
 function renderApp(options = {}) {
   const {
     preserveScroll = true,
+    scrollToDate = "",
     scrollToToday = false,
   } = options;
   const scrollPositions = preserveScroll ? captureHorizontalScrollPositions() : new Map();
@@ -392,7 +438,9 @@ function renderApp(options = {}) {
     restoreHorizontalScrollPositions(scrollPositions);
   }
 
-  if (scrollToToday) {
+  if (scrollToDate) {
+    scrollToDateSection(scrollToDate);
+  } else if (scrollToToday) {
     scrollToTodaySection();
   }
 }
@@ -863,8 +911,11 @@ function restoreHorizontalScrollPositions(positions) {
 }
 
 function scrollToTodaySection() {
-  const today = getTodayIsoDate();
-  const section = scheduleBoard.querySelector(`.day-section[data-date="${today}"]`);
+  scrollToDateSection(getTodayIsoDate());
+}
+
+function scrollToDateSection(isoDate) {
+  const section = scheduleBoard.querySelector(`.day-section[data-date="${isoDate}"]`);
 
   section?.scrollIntoView({
     behavior: "smooth",
@@ -873,9 +924,32 @@ function scrollToTodaySection() {
 }
 
 function showFileStatus(message, tone = "info") {
+  clearFileStatusTimer();
   fileStatus.textContent = message;
   fileStatus.dataset.tone = tone;
   fileStatus.hidden = false;
+
+  if (AUTO_DISMISS_STATUS_TONES.has(tone)) {
+    fileStatusTimer = window.setTimeout(() => {
+      if (fileStatus.textContent === message && fileStatus.dataset.tone === tone) {
+        clearFileStatus();
+      }
+    }, STATUS_AUTO_DISMISS_MS);
+  }
+}
+
+function clearFileStatus() {
+  clearFileStatusTimer();
+  fileStatus.textContent = "";
+  delete fileStatus.dataset.tone;
+  fileStatus.hidden = true;
+}
+
+function clearFileStatusTimer() {
+  if (fileStatusTimer) {
+    window.clearTimeout(fileStatusTimer);
+    fileStatusTimer = null;
+  }
 }
 
 function getRequiredElement(selector) {
@@ -906,6 +980,10 @@ function addOptionalListener(element, eventName, handler) {
   if (element) {
     element.addEventListener(eventName, handler);
   }
+}
+
+function isIsoDateValue(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value ?? ""));
 }
 
 function isViewerModeFromUrl() {
