@@ -6,7 +6,7 @@ This is still single-user/local-browser software. There is no backend, Box sync,
 
 ## Disclosure
 
-This project was designed and directed by Hadden Smith for the BYU Helaman Halls Conference Assistant scheduling workflow. The implementation code was generated with AI assistance through iterative prompting, testing, and refinement. Hadden provided the product requirements, workflow design, testing feedback, and feature direction. Because the code was AI-generated, it should be reviewed before production or institution-wide deployment. This project is not being presented as hand-coded from scratch.
+This project was designed and directed by Hadden Smith for the BYU Helaman Halls Conference Assistant scheduling workflow. The implementation code was generated with AI assistance through iterative prompting, testing, and refinement. I provided the product requirements, workflow design, testing feedback, and feature direction. Because the code was AI-generated, it should be reviewed before production or institution-wide deployment. This project is not being presented as hand-coded from scratch.
 
 ## Current Features
 
