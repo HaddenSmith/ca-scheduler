@@ -421,7 +421,6 @@ export function updateOnCallAssignment(schedule, assignment) {
     date: assignment.date,
     primaryWorkerId: assignment.primaryWorkerId ?? "",
     backupWorkerId: assignment.backupWorkerId ?? "",
-    notes: assignment.notes?.trim() ?? "",
   };
   const hasExisting = (schedule.onCallAssignments ?? []).some((item) => {
     return item.date === normalizedAssignment.date;
@@ -446,7 +445,6 @@ export function createDefaultOnCallAssignment(date) {
     date,
     primaryWorkerId: "",
     backupWorkerId: "",
-    notes: "",
   };
 }
 

@@ -451,6 +451,39 @@ export function findDeskCoverageGapWarnings(shifts, deskCoverageItems, weekDates
   return warnings;
 }
 
+export function findMissingNightPhoneCoverageWarnings(
+  assignments,
+  workers,
+  weekDates,
+  settings = {},
+) {
+  if (settings.missingNightPhoneCoverageWarningEnabled === false) {
+    return [];
+  }
+
+  const validWorkerIds = new Set((workers ?? []).map((worker) => worker.id));
+  const assignmentsByDate = new Map(
+    (assignments ?? []).map((assignment) => [assignment.date, assignment]),
+  );
+
+  return weekDates.flatMap((date) => {
+    const assignment = assignmentsByDate.get(date.isoDate);
+    const primaryIsValid = validWorkerIds.has(assignment?.primaryWorkerId);
+    const backupIsValid = validWorkerIds.has(assignment?.backupWorkerId);
+
+    if (primaryIsValid && backupIsValid) {
+      return [];
+    }
+
+    return [{
+      category: "night-phone-coverage",
+      date: date.isoDate,
+      missingPrimary: !primaryIsValid,
+      missingBackup: !backupIsValid,
+    }];
+  });
+}
+
 function addLongShiftWarning(warnings, {
   blockDate,
   blockEnd,

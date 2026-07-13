@@ -34,7 +34,7 @@ This project was designed and directed by Hadden Smith for the BYU Helaman Halls
 - Desk Coverage rail stored separately from worker shifts.
 - Add, edit, delete, drag, resize, duplicate, and repeat Desk Coverage blocks.
 - Daily totals, weekly totals, and weekly hours-by-type summary.
-- Non-blocking warnings for overlap, phone coverage overlap, long consecutive work, late-night into early-morning, weekly max hours, daily max hours, and desk coverage gaps.
+- Non-blocking warnings for overlap, phone coverage overlap, missing dedicated Night Phone Coverage, long consecutive work, late-night into early-morning, weekly max hours, daily max hours, and desk coverage gaps.
 - JSON export/import for restoring the full local schedule state, available from Settings -> Data / Backup.
 - Single-computer localStorage autosave in edit mode.
 - Clear Local Autosave and Load Default Schedule controls in Settings -> Data / Backup.
@@ -185,7 +185,7 @@ To publish a schedule today, export JSON from Settings -> Data / Backup and repl
 - BYU-hosted backend and SQL database integration.
 - Shared multi-user editing with conflict prevention and audit/version history.
 - Undo/redo, including Ctrl+Z, for edits, moves, copies, repeats, deletes, and Desk Coverage changes.
-- Multi-area scheduling with isolated area data and a housing-area selector, such as Helaman, Heritage, YView, and Riviera.
+- Multi-area scheduling with isolated area data and a housing-area selector, such as Helaman, Heritage, Wyview, and Riviera.
 - A future comparison view for two housing areas side by side without mixing their edits.
 - Area-specific Check In building assignments and codes; for example, selecting May Hall could generate `CI-I`.
 - Live/subscribed calendar feeds in addition to snapshot ICS downloads.

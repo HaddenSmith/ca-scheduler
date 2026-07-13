@@ -182,6 +182,13 @@ function createSettingsElements() {
                 </label>
               </div>
             </section>
+
+            <section class="warning-setting-card">
+              <label class="checkbox-row">
+                <input name="missingNightPhoneCoverageWarningEnabled" type="checkbox" />
+                <span>Missing night phone coverage</span>
+              </label>
+            </section>
           </div>
         </fieldset>
 
@@ -290,6 +297,7 @@ function populateSettingsForm() {
   getField("lateNightThreshold").value = formatTimeForDisplay(settings.lateNightThreshold ?? DEFAULT_SETTINGS.lateNightThreshold);
   getField("earlyMorningThreshold").value = formatTimeForDisplay(settings.earlyMorningThreshold ?? DEFAULT_SETTINGS.earlyMorningThreshold);
   getField("deskCoverageGapWarningEnabled").checked = settings.deskCoverageGapWarningEnabled !== false;
+  getField("missingNightPhoneCoverageWarningEnabled").checked = settings.missingNightPhoneCoverageWarningEnabled !== false;
   getField("deskCoverageRequiredStartTime").value = formatTimeForDisplay(settings.deskCoverageRequiredStartTime ?? DEFAULT_SETTINGS.deskCoverageRequiredStartTime);
   getField("deskCoverageRequiredEndTime").value = formatTimeForDisplay(settings.deskCoverageRequiredEndTime ?? DEFAULT_SETTINGS.deskCoverageRequiredEndTime);
 }
@@ -412,6 +420,7 @@ function readSettingsForm() {
         ? earlyMorningResult.value
         : activeContext.settings.earlyMorningThreshold,
       deskCoverageGapWarningEnabled: getField("deskCoverageGapWarningEnabled").checked,
+      missingNightPhoneCoverageWarningEnabled: getField("missingNightPhoneCoverageWarningEnabled").checked,
       deskCoverageRequiredStartTime: deskCoverageStartResult.isValid
         ? deskCoverageStartResult.value
         : activeContext.settings.deskCoverageRequiredStartTime,

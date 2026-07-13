@@ -43,7 +43,6 @@
  * @property {string} date ISO date in YYYY-MM-DD format.
  * @property {string} primaryWorkerId
  * @property {string} backupWorkerId
- * @property {string} notes
  */
 
 /**
@@ -63,6 +62,7 @@
  * @property {boolean} dailyMaxHoursWarningEnabled
  * @property {number} maxDailyHours
  * @property {boolean} deskCoverageGapWarningEnabled
+ * @property {boolean} missingNightPhoneCoverageWarningEnabled
  * @property {string} deskCoverageRequiredStartTime
  * @property {string} deskCoverageRequiredEndTime
  * @property {boolean} viewerWarningsEnabled
@@ -84,6 +84,7 @@ export const DEFAULT_SETTINGS = {
   dailyMaxHoursWarningEnabled: true,
   maxDailyHours: 10,
   deskCoverageGapWarningEnabled: true,
+  missingNightPhoneCoverageWarningEnabled: true,
   deskCoverageRequiredStartTime: "07:00",
   deskCoverageRequiredEndTime: "00:00",
   viewerWarningsEnabled: true,

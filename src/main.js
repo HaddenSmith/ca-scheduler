@@ -47,6 +47,7 @@ import {
   findDeskCoverageGapWarnings,
   findLateNightMorningWarnings,
   findLongConsecutiveWorkWarnings,
+  findMissingNightPhoneCoverageWarnings,
   findPhoneCoverageOverlaps,
   findShiftOverlaps,
   findWeeklyMaxHourWarnings,
@@ -1159,6 +1160,12 @@ function renderScheduleWarnings(container, currentSchedule, dailyTotals = {}, we
     weekDates,
     currentSchedule.settings,
   );
+  const missingNightPhoneCoverageWarnings = findMissingNightPhoneCoverageWarnings(
+    currentSchedule.onCallAssignments ?? [],
+    currentSchedule.workers,
+    weekDates,
+    currentSchedule.settings,
+  );
 
   container.replaceChildren();
   container.hidden =
@@ -1168,7 +1175,8 @@ function renderScheduleWarnings(container, currentSchedule, dailyTotals = {}, we
     lateMorningWarnings.length === 0 &&
     weeklyMaxWarnings.length === 0 &&
     dailyMaxWarnings.length === 0 &&
-    deskCoverageGapWarnings.length === 0;
+    deskCoverageGapWarnings.length === 0 &&
+    missingNightPhoneCoverageWarnings.length === 0;
 
   if (container.hidden) {
     return;
@@ -1181,6 +1189,12 @@ function renderScheduleWarnings(container, currentSchedule, dailyTotals = {}, we
     weekDates.map((date) => [
       date.isoDate,
       `${date.dayName}, ${date.displayDate}`,
+    ]),
+  );
+  const nightDateLabels = new Map(
+    weekDates.map((date) => [
+      date.isoDate,
+      `${date.dayName} night, ${date.displayDate}`,
     ]),
   );
   const shiftLookup = new Map(overlapWarningShifts.map((shift) => [shift.id, shift]));
@@ -1225,6 +1239,18 @@ function renderScheduleWarnings(container, currentSchedule, dailyTotals = {}, we
       title: "Desk coverage gaps",
       warnings: deskCoverageGapWarnings.map((gap) => {
         return `Desk coverage gap on ${dateLabels.get(gap.date) ?? gap.date} from ${formatTimeForDisplay(gap.startTime)} to ${formatTimeForDisplay(gap.endTime)}`;
+      }),
+    },
+    {
+      title: "Night phone coverage",
+      warnings: missingNightPhoneCoverageWarnings.map((warning) => {
+        const missingLabel = warning.missingPrimary && warning.missingBackup
+          ? "No Night On Call and Night Backup On Call workers are assigned"
+          : warning.missingPrimary
+            ? "No valid Night On Call worker is assigned"
+            : "No valid Night Backup On Call worker is assigned";
+
+        return `${missingLabel} for ${nightDateLabels.get(warning.date) ?? warning.date}`;
       }),
     },
     {

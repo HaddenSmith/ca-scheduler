@@ -82,12 +82,13 @@ Desk Coverage has no worker and is excluded from worker hours, worker overlaps, 
 {
   date: "YYYY-MM-DD",
   primaryWorkerId: "worker-id-or-empty",
-  backupWorkerId: "worker-id-or-empty",
-  notes: ""
+  backupWorkerId: "worker-id-or-empty"
 }
 ```
 
 Time-based phone coverage can also be represented on shifts with `alsoOnCall` and `alsoBackupOnCall`, or by standalone On Call/Backup On Call shifts.
+
+Older schedule files may contain a `notes` field on nightly assignments. That field is deprecated: imports accept and ignore it, and normalized/autosaved/exported records omit it. This does not affect notes on normal shifts, roving shifts, or Desk Coverage.
 
 ## Settings
 
@@ -100,6 +101,7 @@ Settings include:
 - long consecutive work and required-break thresholds;
 - late-night/early-morning thresholds;
 - required Desk Coverage window and warning toggle.
+- missing dedicated Night Phone Coverage warning toggle.
 
 Import merges missing optional settings with `DEFAULT_SETTINGS`. Older files without a Checkout/Project color inherit the imported Check Out color.
 

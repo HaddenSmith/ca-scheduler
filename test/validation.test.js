@@ -7,6 +7,7 @@ import {
   findDeskCoverageGapWarnings,
   findLateNightMorningWarnings,
   findLongConsecutiveWorkWarnings,
+  findMissingNightPhoneCoverageWarnings,
   findPhoneCoverageOverlaps,
   findShiftOverlaps,
   findWeeklyMaxHourWarnings,
@@ -88,4 +89,78 @@ test("desk gap warnings combine worker Desk shifts with Desk Coverage and can be
   assert.equal(findDeskCoverageGapWarnings([], coverage, oneDay, focusedSettings).length, 1);
   assert.equal(findDeskCoverageGapWarnings([deskShift], [], oneDay, focusedSettings).length, 1);
   assert.equal(findDeskCoverageGapWarnings([], [], oneDay, { ...focusedSettings, deskCoverageGapWarningEnabled: false }).length, 0);
+});
+
+test("fully assigned nightly phone coverage produces no warning", () => {
+  const weekDates = buildWeekDates("2026-07-11").slice(0, 1);
+  const workers = [makeWorker(), makeWorker("worker-2", "Bailey")];
+  const assignments = [{
+    date: "2026-07-11",
+    primaryWorkerId: "worker-1",
+    backupWorkerId: "worker-2",
+  }];
+
+  assert.deepEqual(
+    findMissingNightPhoneCoverageWarnings(assignments, workers, weekDates, settings),
+    [],
+  );
+});
+
+test("missing or incomplete nightly assignments produce categorized warnings", () => {
+  const workers = [makeWorker(), makeWorker("worker-2", "Bailey")];
+  const weekDates = buildWeekDates("2026-07-11").slice(0, 3);
+  const assignments = [
+    { date: "2026-07-12", primaryWorkerId: "worker-1", backupWorkerId: "" },
+    { date: "2026-07-13", primaryWorkerId: "", backupWorkerId: "worker-2" },
+  ];
+  const warnings = findMissingNightPhoneCoverageWarnings(
+    assignments,
+    workers,
+    weekDates,
+    settings,
+  );
+
+  assert.equal(warnings.length, 3);
+  assert.ok(warnings.every((warning) => warning.category === "night-phone-coverage"));
+  assert.deepEqual(
+    warnings.map(({ missingPrimary, missingBackup }) => ({ missingPrimary, missingBackup })),
+    [
+      { missingPrimary: true, missingBackup: true },
+      { missingPrimary: false, missingBackup: true },
+      { missingPrimary: true, missingBackup: false },
+    ],
+  );
+});
+
+test("nightly warning setting disables and restores the warning", () => {
+  const weekDates = buildWeekDates("2026-07-11").slice(0, 1);
+  const workers = [makeWorker()];
+
+  assert.equal(
+    findMissingNightPhoneCoverageWarnings([], workers, weekDates, {
+      ...settings,
+      missingNightPhoneCoverageWarningEnabled: false,
+    }).length,
+    0,
+  );
+  assert.equal(
+    findMissingNightPhoneCoverageWarnings([], workers, weekDates, {
+      ...settings,
+      missingNightPhoneCoverageWarningEnabled: true,
+    }).length,
+    1,
+  );
+});
+
+test("nightly assignments referencing removed workers are incomplete", () => {
+  const warnings = findMissingNightPhoneCoverageWarnings(
+    [{ date: "2026-07-11", primaryWorkerId: "removed", backupWorkerId: "worker-1" }],
+    [makeWorker()],
+    buildWeekDates("2026-07-11").slice(0, 1),
+    settings,
+  );
+
+  assert.equal(warnings.length, 1);
+  assert.equal(warnings[0].missingPrimary, true);
+  assert.equal(warnings[0].missingBackup, false);
 });

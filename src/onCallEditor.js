@@ -49,11 +49,6 @@ function createEditorElements() {
           <select name="backupWorkerId"></select>
         </label>
 
-        <label>
-          <span>Notes</span>
-          <textarea name="notes" rows="3"></textarea>
-        </label>
-
         <footer class="shift-editor-actions align-end">
           <div>
             <button type="button" class="secondary-button" data-on-call-action="cancel">Cancel</button>
@@ -106,7 +101,6 @@ function populateForm() {
 
   getField("primaryWorkerId").value = activeContext.assignment.primaryWorkerId;
   getField("backupWorkerId").value = activeContext.assignment.backupWorkerId;
-  getField("notes").value = activeContext.assignment.notes ?? "";
 }
 
 function readForm() {
@@ -114,7 +108,6 @@ function readForm() {
     date: activeContext.assignment.date,
     primaryWorkerId: getField("primaryWorkerId").value,
     backupWorkerId: getField("backupWorkerId").value,
-    notes: getField("notes").value.trim(),
   };
 }
 

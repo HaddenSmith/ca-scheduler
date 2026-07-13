@@ -76,5 +76,7 @@ Canonical shift types are: `Check In`, `Check Out`, `Checkout/Project`, `Roving`
 - OFF, Class, and standalone phone coverage default to zero counted work hours.
 - Weekly calculations split overnight work at actual calendar and displayed-week boundaries.
 - Scheduling warnings are non-blocking.
+- Missing Night Phone Coverage warnings use only dedicated nightly assignments; never infer them from shifts, phone flags, CSA, or roving subtypes.
+- Nightly assignment `notes` is a deprecated import-only field and must not be restored to the editor or exported model.
 
 Read `ARCHITECTURE.md`, `DATA_MODEL.md`, and `CODE_REVIEW.md` before changing cross-module behavior.

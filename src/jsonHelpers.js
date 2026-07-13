@@ -28,7 +28,11 @@ export function createScheduleFile(schedule) {
       workers: schedule.workers ?? [],
       shifts,
       deskCoverage,
-      onCallAssignments: schedule.onCallAssignments ?? [],
+      onCallAssignments: (schedule.onCallAssignments ?? []).map((assignment) => ({
+        date: assignment.date,
+        primaryWorkerId: assignment.primaryWorkerId ?? "",
+        backupWorkerId: assignment.backupWorkerId ?? "",
+      })),
       settings,
       currentWeekStart: schedule.weekStartDate,
     },
@@ -236,6 +240,7 @@ function normalizeSettings(value, warnings) {
   settings.weeklyMaxHoursWarningEnabled = settings.weeklyMaxHoursWarningEnabled !== false;
   settings.dailyMaxHoursWarningEnabled = settings.dailyMaxHoursWarningEnabled !== false;
   settings.deskCoverageGapWarningEnabled = settings.deskCoverageGapWarningEnabled !== false;
+  settings.missingNightPhoneCoverageWarningEnabled = settings.missingNightPhoneCoverageWarningEnabled !== false;
   settings.viewerWarningsEnabled = settings.viewerWarningsEnabled !== false;
 
   if (!isPositiveNumber(settings.maxWeeklyHours)) {
@@ -524,7 +529,6 @@ function normalizeOnCallAssignments(value, workerIds, errors) {
       date,
       primaryWorkerId,
       backupWorkerId,
-      notes: String(assignment.notes ?? "").trim(),
     });
     seenDates.add(date);
   });

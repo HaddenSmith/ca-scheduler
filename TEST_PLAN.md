@@ -142,6 +142,11 @@ Use this checklist before moving toward backend, Box, or server work.
 - Trigger and verify weekly max hours warnings.
 - Trigger and verify daily max hours warnings.
 - Trigger and verify desk coverage gap warnings.
+- Clear a day's dedicated Night On Call and Night Backup assignments and confirm one Night phone coverage warning appears.
+- Leave only Night On Call assigned and confirm the day is reported as incomplete.
+- Leave only Night Backup On Call assigned and confirm the day is reported as incomplete.
+- Confirm multiple uncovered nights collapse under one Night phone coverage group and expand into separate dated bullets.
+- Disable Missing night phone coverage in Settings and confirm only that warning category disappears immediately; re-enable it and confirm it returns.
 - Confirm one warning in a category displays as a clean single-line grouped warning.
 - Confirm multiple warnings in a category collapse by default with the first warning and a "+ N more" summary.
 - Expand a multi-warning category and confirm every warning appears as an indented bullet item.
@@ -155,6 +160,15 @@ Use this checklist before moving toward backend, Box, or server work.
 - In edit mode, confirm warnings show normally.
 - In viewer mode, confirm warnings show when "Show warnings in Viewer Mode" is enabled.
 - In viewer mode, confirm warnings hide when "Show warnings in Viewer Mode" is disabled in the saved schedule.
+
+## Night Phone Coverage Editor
+
+- Click a Night Phone Coverage row and confirm the popup contains only Night Primary On Call and Night Backup On Call selectors plus Save/Cancel.
+- Confirm no Notes field appears.
+- Save both workers and confirm the nightly row updates and its warning clears.
+- Confirm existing nightly assignments still render in Detailed and Compact views.
+- Import an older JSON file containing nightly assignment `notes` and confirm it imports successfully and exports later without that legacy field.
+- Confirm ordinary shift, roving, and Desk Coverage notes remain unchanged.
 
 ## Totals
 

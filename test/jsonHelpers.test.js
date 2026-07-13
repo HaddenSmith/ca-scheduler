@@ -86,3 +86,33 @@ test("rejects malformed JSON safely", () => {
   assert.equal(result.isValid, false);
   assert.equal(result.schedule, null);
 });
+
+test("older settings enable missing-night coverage warnings by default", () => {
+  const file = createScheduleFile(makeSchedule());
+  delete file.data.settings.missingNightPhoneCoverageWarningEnabled;
+  const result = validateAndNormalizeScheduleFile(file);
+
+  assert.equal(result.isValid, true);
+  assert.equal(result.schedule.settings.missingNightPhoneCoverageWarningEnabled, true);
+});
+
+test("legacy nightly notes import safely and normalize away without affecting shift notes", () => {
+  const file = createScheduleFile(makeSchedule({
+    shifts: [makeShift({ notes: "Keep this normal shift note." })],
+    onCallAssignments: [{
+      date: "2026-07-11",
+      primaryWorkerId: "worker-1",
+      backupWorkerId: "worker-1",
+      notes: "Legacy nightly note",
+    }],
+  }));
+  file.data.onCallAssignments[0].notes = "Legacy nightly note";
+  const imported = validateAndNormalizeScheduleFile(file);
+
+  assert.equal(imported.isValid, true);
+  assert.equal(imported.schedule.shifts[0].notes, "Keep this normal shift note.");
+  assert.equal(Object.hasOwn(imported.schedule.onCallAssignments[0], "notes"), false);
+
+  const exportedAgain = createScheduleFile(imported.schedule);
+  assert.equal(Object.hasOwn(exportedAgain.data.onCallAssignments[0], "notes"), false);
+});
