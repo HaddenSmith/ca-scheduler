@@ -7,6 +7,10 @@ import {
 import { timeToMinutes } from "./timeUtils.js";
 
 const CALENDAR_TIME_ZONE = "America/Denver";
+const EXCLUDED_SHIFT_TYPES = new Set(["Class", "OFF", "Desk Coverage"]);
+const PHONE_COVERAGE_TYPES = new Set(["On Call", "Backup On Call"]);
+const REMINDER_START_TIME = "23:30";
+const REMINDER_END_TIME = "23:45";
 
 let dialogElements;
 let activeSchedule;
@@ -42,28 +46,14 @@ export function buildWorkerCalendar(schedule, options) {
   }
 
   const shifts = schedule.shifts.filter((shift) => {
-    if (shift.workerId !== worker.id || !weekDates.has(shift.date)) {
-      return false;
-    }
-
-    if (!options.includeClass && shift.shiftType === "Class") {
-      return false;
-    }
-
-    if (!options.includeOff && shift.shiftType === "OFF") {
-      return false;
-    }
-
-    if (
-      !options.includeOnCall &&
-      ["On Call", "Backup On Call"].includes(shift.shiftType)
-    ) {
-      return false;
-    }
-
-    return true;
+    return shift.workerId === worker.id &&
+      weekDates.has(shift.date) &&
+      isShiftIncludedInCalendar(shift);
   });
-  const stamp = formatUtcTimestamp(new Date());
+  const reminders = options.includeNightlyReminder === false
+    ? []
+    : getNightlyPhoneReminders(schedule, worker.id, weekDates);
+  const stamp = formatUtcTimestamp(options.now ?? new Date());
   const calendarLines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -76,24 +66,30 @@ export function buildWorkerCalendar(schedule, options) {
   ];
 
   for (const shift of shifts) {
-    calendarLines.push(...buildEventLines(shift, worker, stamp, options));
+    calendarLines.push(...buildEventLines(shift, worker, stamp));
+  }
+
+  for (const reminder of reminders) {
+    calendarLines.push(...buildReminderEventLines(reminder, worker, stamp));
   }
 
   calendarLines.push("END:VCALENDAR");
 
   return {
     content: `${calendarLines.map(foldIcsLine).join("\r\n")}\r\n`,
-    eventCount: shifts.length,
+    eventCount: shifts.length + reminders.length,
     fileName: `ca-work-schedule-${slugify(worker.name)}-${weekStartDate}.ics`,
+    reminderEventCount: reminders.length,
     weekStartDate,
+    workEventCount: shifts.length,
   };
 }
 
 export function downloadWorkerCalendar(schedule, options) {
   const calendar = buildWorkerCalendar(schedule, options);
 
-  if (calendar.eventCount === 0) {
-    throw new Error("No matching shifts were found for that worker and week.");
+  if (calendar.workEventCount === 0) {
+    throw new Error("No work shifts were found for this worker during the selected week.");
   }
 
   const blob = new Blob([calendar.content], { type: "text/calendar;charset=utf-8" });
@@ -132,32 +128,15 @@ function createDialogElements() {
         </label>
 
         <label>
-          <span>Week Containing</span>
+          <span>Week of</span>
           <input name="weekDate" type="date" required />
         </label>
         <p class="field-help ics-week-range"></p>
 
-        <fieldset class="editor-fieldset">
-          <legend>Include</legend>
-          <div class="ics-option-list">
-            <label class="checkbox-row">
-              <input name="includeNotes" type="checkbox" />
-              <span>Notes and descriptions</span>
-            </label>
-            <label class="checkbox-row">
-              <input name="includeClass" type="checkbox" />
-              <span>Class shifts</span>
-            </label>
-            <label class="checkbox-row">
-              <input name="includeOff" type="checkbox" />
-              <span>OFF shifts</span>
-            </label>
-            <label class="checkbox-row">
-              <input name="includeOnCall" type="checkbox" />
-              <span>On Call and Backup On Call shifts</span>
-            </label>
-          </div>
-        </fieldset>
+        <label class="checkbox-row">
+          <input name="includeNightlyReminder" type="checkbox" />
+          <span>Include an 11:30 PM On Call/Backup On Call reminder, if applicable</span>
+        </label>
 
         <p class="ics-snapshot-note">
           This downloads a snapshot .ics file. Import it into Google Calendar, Apple Calendar, Outlook, or another calendar app. It will not auto-update if the schedule changes later.
@@ -206,7 +185,7 @@ function populateDialog() {
   dialogElements.errors.hidden = true;
   dialogElements.worker.replaceChildren();
 
-  for (const worker of activeSchedule.workers) {
+  for (const worker of getCalendarWorkerOptions(activeSchedule)) {
     const option = document.createElement("option");
     option.value = worker.id;
     option.textContent = worker.name;
@@ -214,10 +193,7 @@ function populateDialog() {
   }
 
   dialogElements.weekDate.value = activeSchedule.weekStartDate;
-  dialogElements.form.elements.includeNotes.checked = true;
-  dialogElements.form.elements.includeClass.checked = true;
-  dialogElements.form.elements.includeOff.checked = false;
-  dialogElements.form.elements.includeOnCall.checked = true;
+  dialogElements.form.elements.includeNightlyReminder.checked = true;
   updateWeekRange();
 }
 
@@ -228,10 +204,7 @@ function handleSubmit(event) {
     const calendar = downloadWorkerCalendar(activeSchedule, {
       workerId: dialogElements.worker.value,
       weekDate: dialogElements.weekDate.value,
-      includeNotes: dialogElements.form.elements.includeNotes.checked,
-      includeClass: dialogElements.form.elements.includeClass.checked,
-      includeOff: dialogElements.form.elements.includeOff.checked,
-      includeOnCall: dialogElements.form.elements.includeOnCall.checked,
+      includeNightlyReminder: dialogElements.form.elements.includeNightlyReminder.checked,
     });
 
     closeDialog({
@@ -269,7 +242,7 @@ function closeDialog(result) {
   resolve?.(result);
 }
 
-function buildEventLines(shift, worker, stamp, options) {
+function buildEventLines(shift, worker, stamp) {
   const endDate = timeToMinutes(shift.endTime) <= timeToMinutes(shift.startTime)
     ? addDays(shift.date, 1)
     : shift.date;
@@ -280,22 +253,20 @@ function buildEventLines(shift, worker, stamp, options) {
   const summary = `${shift.label || shift.shiftType || "Shift"}${summarySuffix}`;
   const descriptionParts = [];
 
-  if (options.includeNotes) {
-    descriptionParts.push(`Worker: ${worker.name}`);
-    descriptionParts.push(`Shift type: ${shift.shiftType || shift.name || "Other"}`);
+  descriptionParts.push(`Worker: ${worker.name}`);
+  descriptionParts.push(`Shift type: ${shift.shiftType || shift.name || "Other"}`);
 
-    if (phoneCoverage.length) {
-      descriptionParts.push(`Phone coverage: ${phoneCoverage.join(" and ")}`);
-    }
+  if (phoneCoverage.length) {
+    descriptionParts.push(`Phone coverage: ${phoneCoverage.join(" and ")}`);
+  }
 
-    if (shift.notes?.trim()) {
-      descriptionParts.push("", shift.notes.trim());
-    }
+  if (shift.notes?.trim()) {
+    descriptionParts.push("", shift.notes.trim());
   }
 
   const lines = [
     "BEGIN:VEVENT",
-    `UID:${escapeIcsText(`${shift.id}-${shift.date}@conference-assistant-scheduler`)}`,
+    `UID:${escapeIcsText(`${shift.id}@conference-assistant-scheduler`)}`,
     `DTSTAMP:${stamp}`,
     `DTSTART;TZID=${CALENDAR_TIME_ZONE}:${formatLocalDateTime(shift.date, shift.startTime)}`,
     `DTEND;TZID=${CALENDAR_TIME_ZONE}:${formatLocalDateTime(endDate, shift.endTime)}`,
@@ -308,6 +279,87 @@ function buildEventLines(shift, worker, stamp, options) {
 
   lines.push("END:VEVENT");
   return lines;
+}
+
+export function getCalendarWorkerOptions(schedule) {
+  return (schedule.workers ?? []).map((worker) => ({
+    id: worker.id,
+    name: worker.name,
+  }));
+}
+
+export function isShiftIncludedInCalendar(shift) {
+  const shiftType = shift.shiftType;
+
+  if (EXCLUDED_SHIFT_TYPES.has(shiftType)) {
+    return false;
+  }
+
+  return shift.countsTowardHours === true ||
+    shiftType === "Staff Meeting" ||
+    PHONE_COVERAGE_TYPES.has(shiftType);
+}
+
+function getNightlyPhoneReminders(schedule, workerId, weekDates) {
+  const reminders = new Map();
+
+  for (const shift of schedule.shifts ?? []) {
+    if (shift.workerId !== workerId || !weekDates.has(shift.date)) {
+      continue;
+    }
+
+    if (shift.shiftType === "On Call" || shift.alsoOnCall === true) {
+      addNightlyReminder(reminders, shift.date, "primary");
+    }
+
+    if (shift.shiftType === "Backup On Call" || shift.alsoBackupOnCall === true) {
+      addNightlyReminder(reminders, shift.date, "backup");
+    }
+  }
+
+  for (const assignment of schedule.onCallAssignments ?? []) {
+    if (!weekDates.has(assignment.date)) {
+      continue;
+    }
+
+    if (assignment.primaryWorkerId === workerId) {
+      addNightlyReminder(reminders, assignment.date, "primary");
+    }
+
+    if (assignment.backupWorkerId === workerId) {
+      addNightlyReminder(reminders, assignment.date, "backup");
+    }
+  }
+
+  return [...reminders.values()].sort((left, right) => {
+    return left.date.localeCompare(right.date) || left.role.localeCompare(right.role);
+  });
+}
+
+function addNightlyReminder(reminders, date, role) {
+  const key = `${date}:${role}`;
+
+  if (!reminders.has(key)) {
+    reminders.set(key, { date, role });
+  }
+}
+
+function buildReminderEventLines(reminder, worker, stamp) {
+  const isBackup = reminder.role === "backup";
+  const title = isBackup ? "Backup On Call Tonight" : "On Call Tonight";
+  const role = isBackup ? "Backup On Call" : "On Call";
+
+  return [
+    "BEGIN:VEVENT",
+    `UID:${escapeIcsText(`phone-reminder-${reminder.role}-${worker.id}-${reminder.date}@conference-assistant-scheduler`)}`,
+    `DTSTAMP:${stamp}`,
+    `DTSTART;TZID=${CALENDAR_TIME_ZONE}:${formatLocalDateTime(reminder.date, REMINDER_START_TIME)}`,
+    `DTEND;TZID=${CALENDAR_TIME_ZONE}:${formatLocalDateTime(reminder.date, REMINDER_END_TIME)}`,
+    `SUMMARY:${escapeIcsText(title)}`,
+    `DESCRIPTION:${escapeIcsText(`${worker.name} is assigned ${role} tonight.`)}`,
+    "TRANSP:TRANSPARENT",
+    "END:VEVENT",
+  ];
 }
 
 function getPhoneCoverageLabels(shift) {

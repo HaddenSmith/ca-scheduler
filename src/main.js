@@ -1119,16 +1119,21 @@ function isViewerModeFromUrl() {
 function renderScheduleWarnings(container, currentSchedule, dailyTotals = {}, weeklyTotals = {}) {
   const weekDates = buildWeekDates(currentSchedule.weekStartDate);
   const visibleDates = new Set(weekDates.map((date) => date.isoDate));
+  const previousDateBeforeWeek = addDays(weekDates[0].isoDate, -1);
   const nextDateAfterWeek = addDays(weekDates.at(-1).isoDate, 1);
   const visibleShifts = currentSchedule.shifts.filter((shift) => visibleDates.has(shift.date));
+  const overlapWarningShifts = currentSchedule.shifts.filter((shift) => {
+    return visibleDates.has(shift.date) || shift.date === previousDateBeforeWeek;
+  });
   const scheduleWarningShifts = currentSchedule.shifts.filter((shift) => {
     return visibleDates.has(shift.date) || shift.date === nextDateAfterWeek;
   });
-  const overlaps = findShiftOverlaps(visibleShifts, currentSchedule.settings);
+  const overlaps = findShiftOverlaps(overlapWarningShifts, currentSchedule.settings)
+    .filter((overlap) => visibleDates.has(overlap.date));
   const phoneOverlaps = findPhoneCoverageOverlaps(
-    visibleShifts,
+    overlapWarningShifts,
     currentSchedule.settings,
-  );
+  ).filter((overlap) => visibleDates.has(overlap.date));
   const longWorkWarnings = findLongConsecutiveWorkWarnings(
     visibleShifts,
     currentSchedule.settings,
@@ -1178,7 +1183,7 @@ function renderScheduleWarnings(container, currentSchedule, dailyTotals = {}, we
       `${date.dayName}, ${date.displayDate}`,
     ]),
   );
-  const shiftLookup = new Map(visibleShifts.map((shift) => [shift.id, shift]));
+  const shiftLookup = new Map(overlapWarningShifts.map((shift) => [shift.id, shift]));
   const warningGroups = [
     {
       title: "Shift overlaps",

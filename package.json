@@ -1,0 +1,9 @@
+{
+  "name": "conference-assistant-scheduler",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "test:syntax": "node --check src/main.js"
+  }
+}

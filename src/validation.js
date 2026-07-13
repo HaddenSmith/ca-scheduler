@@ -142,28 +142,25 @@ export function findShiftOverlaps(shifts, settings) {
   const groups = new Map();
 
   for (const shift of shifts) {
-    const key = `${shift.workerId}|${shift.date}`;
-    const group = groups.get(key) ?? [];
-    group.push(shift);
-    groups.set(key, group);
+    if (!isAllowedScheduleTime(shift.startTime, settings) || !isAllowedScheduleTime(shift.endTime, settings)) {
+      continue;
+    }
+
+    for (const segment of splitShiftIntoCalendarSegments(shift)) {
+      const key = `${shift.workerId}|${segment.date}`;
+      const group = groups.get(key) ?? [];
+      group.push({
+        shift,
+        date: segment.date,
+        start: segment.startMinute,
+        end: segment.endMinute,
+      });
+      groups.set(key, group);
+    }
   }
 
   for (const group of groups.values()) {
-    const sorted = group.filter((shift) => {
-      return (
-        isAllowedScheduleTime(shift.startTime, settings) &&
-        isAllowedScheduleTime(shift.endTime, settings)
-      );
-    }).map((shift) => {
-      const start = timeToDisplayMinutes(shift.startTime, settings);
-      const end = timeToDisplayMinutes(shift.endTime, settings);
-
-      return {
-        shift,
-        start,
-        end,
-      };
-    }).sort((a, b) => a.start - b.start);
+    const sorted = group.sort((a, b) => a.start - b.start);
 
     for (let index = 0; index < sorted.length; index += 1) {
       for (let nextIndex = index + 1; nextIndex < sorted.length; nextIndex += 1) {
@@ -176,7 +173,7 @@ export function findShiftOverlaps(shifts, settings) {
 
         overlaps.push({
           workerId: current.shift.workerId,
-          date: current.shift.date,
+          date: current.date,
           shiftIds: [current.shift.id, next.shift.id],
         });
       }
@@ -207,31 +204,24 @@ export function findPhoneCoverageOverlaps(shifts, settings) {
         continue;
       }
 
-      const group = groups.get(shift.date) ?? [];
-      group.push(shift);
-      groups.set(shift.date, group);
+      if (!isAllowedScheduleTime(shift.startTime, settings) || !isAllowedScheduleTime(shift.endTime, settings)) {
+        continue;
+      }
+
+      for (const segment of splitShiftIntoCalendarSegments(shift)) {
+        const group = groups.get(segment.date) ?? [];
+        group.push({
+          shift,
+          date: segment.date,
+          start: segment.startMinute,
+          end: segment.endMinute,
+        });
+        groups.set(segment.date, group);
+      }
     }
 
     for (const group of groups.values()) {
-      const sorted = group.filter((shift) => {
-        return (
-          isAllowedScheduleTime(shift.startTime, settings) &&
-          isAllowedScheduleTime(shift.endTime, settings)
-        );
-      }).map((shift) => {
-        let start = timeToDisplayMinutes(shift.startTime, settings);
-        let end = timeToDisplayMinutes(shift.endTime, settings);
-
-        if (end <= start) {
-          end += 24 * 60;
-        }
-
-        return {
-          shift,
-          start,
-          end,
-        };
-      }).sort((a, b) => a.start - b.start);
+      const sorted = group.sort((a, b) => a.start - b.start);
 
       for (let index = 0; index < sorted.length; index += 1) {
         for (let nextIndex = index + 1; nextIndex < sorted.length; nextIndex += 1) {
@@ -248,7 +238,7 @@ export function findPhoneCoverageOverlaps(shifts, settings) {
 
           overlaps.push({
             role: config.role,
-            date: current.shift.date,
+            date: current.date,
             workerIds: [current.shift.workerId, next.shift.workerId],
             shiftIds: [current.shift.id, next.shift.id],
             startTime: minutesToTimeValue(Math.max(current.start, next.start)),

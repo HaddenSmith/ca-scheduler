@@ -57,19 +57,35 @@ Use this checklist before moving toward backend, Box, or server work.
 
 - Confirm the calendar download icon appears only in Viewer Mode.
 - Confirm the icon opens the Download Calendar File modal without enabling editing.
-- Confirm the worker list is populated from the published schedule.
-- Confirm the currently displayed week is selected by default.
+- Confirm the modal contains only worker selection, **Week of**, the optional 11:30 PM reminder checkbox, the snapshot explanation, and Download/Cancel actions.
+- Confirm the worker list is populated from the currently loaded published schedule.
+- Add, rename, reorder, import, and remove workers in editor data, publish that data, and confirm the viewer dropdown reflects the new list and order.
+- Confirm the currently displayed week is selected by default and its calculated seven-day range is visible.
 - Choose another date and confirm the modal uses the week containing that date according to the configured week start day.
 - Download a worker calendar and confirm the file uses a readable worker/week name and valid `.ics` structure.
 - Confirm the calendar includes only the selected worker's shifts whose start dates are in the selected week.
+- Confirm counted work shifts and Staff Meeting are included.
+- Confirm standalone On Call and Backup On Call are included.
+- Confirm Class and OFF are always excluded.
 - Confirm Desk Coverage rail blocks are excluded.
 - Confirm an overnight shift ends on the following calendar date in the `.ics` file.
-- Confirm notes and phone-coverage descriptions are included when enabled.
+- Confirm notes and phone-coverage descriptions are always included.
 - Confirm normal shifts with Also On Call or Also Backup On Call include that role in the event name.
-- Confirm Class is included by default and can be excluded.
-- Confirm OFF is excluded by default and can be included.
-- Confirm standalone On Call and Backup On Call are included by default and can be excluded.
+- With the reminder checkbox enabled, confirm explicit standalone, shift-flag, and nightly assignments create the correct 11:30-11:45 PM transparent reminders.
+- Confirm repeated evidence for the same worker/night/role creates only one reminder.
+- Confirm CSA or a roving label alone does not create a reminder.
+- Disable the reminder checkbox and confirm normal events remain but reminder events are absent.
+- Choose a worker/week with only Class, OFF, or Desk Coverage and confirm no file downloads and a clear no-work-shifts message appears.
+- Inspect a generated file and confirm CRLF lines, folded long lines, unique UIDs, `DTSTAMP`, and `America/Denver` timezone data.
 - Confirm the modal explains that the calendar is a snapshot and will not auto-update.
+
+## Automated Regression Suite
+
+- Run `node --test` (or `npm test`) and confirm all Node built-in tests pass.
+- Run syntax checks for every `src/*.js` file.
+- Run `git diff --check`.
+- Automated coverage includes ICS rules, midnight/week totals, warning rules, JSON normalization, repeat/copy behavior, and roving utilities.
+- Pointer precision, responsive visual layout, browser downloads, and modal focus remain manual/browser checks and must not be marked passed solely from unit tests.
 
 ## JSON
 

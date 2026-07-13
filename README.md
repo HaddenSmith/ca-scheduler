@@ -61,7 +61,7 @@ or open:
 viewer.html
 ```
 
-Use the download icon in Viewer Mode to choose one worker and one week, then download an `.ics` file for Google Calendar, Apple Calendar, Outlook, or another calendar app. This is a one-time snapshot, not a subscribed calendar. When the published schedule changes, download and import a new file.
+Use the download icon in Viewer Mode to choose one worker and one week, then download an `.ics` file for Google Calendar, Apple Calendar, Outlook, or another calendar app. Counted work, Staff Meeting, On Call, and Backup On Call shifts are included with notes and phone-coverage details. Class, OFF, and Desk Coverage are always excluded. An optional checkbox adds deduplicated 11:30 PM phone-duty reminders when the worker has an explicit assignment. This is a one-time snapshot, not a subscribed calendar. When the published schedule changes, download and import a new file.
 
 ## JSON Import and Export
 
@@ -115,6 +115,16 @@ Then open:
 ```text
 http://127.0.0.1:5177/
 ```
+
+## Automated Tests
+
+The repository uses Node's built-in test runner with no test framework or build system. From this directory, run:
+
+```powershell
+node --test
+```
+
+`npm test` runs the same command when npm is available. The suite covers ICS generation, time and hour calculations, warnings, JSON compatibility, repeat/copy helpers, and roving utilities. Browser pointer and visual checks remain documented in `TEST_PLAN.md`.
 
 ## GitHub Pages Usage
 
@@ -171,10 +181,14 @@ To publish a schedule today, export JSON from Settings -> Data / Backup and repl
 
 ## Future Work
 
-- Multi-area scheduling support, such as a housing-area dropdown for different BYU housing areas or CA teams.
-- Undo/Ctrl+Z support for recent edits, moves, copies, repeats, deletes, and Desk Coverage changes.
-- Backend/database or Box/server sync for shared multi-user editing.
-- Role-based editor/viewer access.
-- Automatic locking or conflict prevention once multiple people can edit shared schedule data.
+- True authenticated editor/viewer separation and role-based permissions.
+- BYU-hosted backend and SQL database integration.
+- Shared multi-user editing with conflict prevention and audit/version history.
+- Undo/redo, including Ctrl+Z, for edits, moves, copies, repeats, deletes, and Desk Coverage changes.
+- Multi-area scheduling with isolated area data and a housing-area selector, such as Helaman, Heritage, YView, and Riviera.
+- A future comparison view for two housing areas side by side without mixing their edits.
+- Area-specific Check In building assignments and codes; for example, selecting May Hall could generate `CI-I`.
+- Live/subscribed calendar feeds in addition to snapshot ICS downloads.
+- Backend/database or Box/server sync where institutionally appropriate.
 
 Backend, Box storage, locking, and multi-user workflow should be added in later milestones after the local JSON workflow is stable.
