@@ -1,0 +1,403 @@
+import {
+  addDays,
+  buildWeekDates,
+  formatWeekRange,
+  getWeekStartDate,
+} from "./dateUtils.js";
+import { timeToMinutes } from "./timeUtils.js";
+
+const CALENDAR_TIME_ZONE = "America/Denver";
+
+let dialogElements;
+let activeSchedule;
+let activeResolve;
+
+export function openIcsExportDialog(schedule) {
+  dialogElements = dialogElements ?? createDialogElements();
+
+  if (activeResolve) {
+    closeDialog({ action: "cancel" });
+  }
+
+  activeSchedule = schedule;
+  populateDialog();
+  dialogElements.backdrop.classList.remove("is-hidden");
+  dialogElements.worker.focus();
+
+  return new Promise((resolve) => {
+    activeResolve = resolve;
+  });
+}
+
+export function buildWorkerCalendar(schedule, options) {
+  const weekStartDate = getWeekStartDate(
+    options.weekDate || schedule.weekStartDate,
+    schedule.settings.weekStartsOn,
+  );
+  const weekDates = new Set(buildWeekDates(weekStartDate).map((date) => date.isoDate));
+  const worker = schedule.workers.find((item) => item.id === options.workerId);
+
+  if (!worker) {
+    throw new Error("Choose a worker before downloading the calendar file.");
+  }
+
+  const shifts = schedule.shifts.filter((shift) => {
+    if (shift.workerId !== worker.id || !weekDates.has(shift.date)) {
+      return false;
+    }
+
+    if (!options.includeClass && shift.shiftType === "Class") {
+      return false;
+    }
+
+    if (!options.includeOff && shift.shiftType === "OFF") {
+      return false;
+    }
+
+    if (
+      !options.includeOnCall &&
+      ["On Call", "Backup On Call"].includes(shift.shiftType)
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+  const stamp = formatUtcTimestamp(new Date());
+  const calendarLines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Conference Assistant Scheduler//Worker Schedule//EN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    `X-WR-CALNAME:${escapeIcsText(`${worker.name} CA Work Schedule`)}`,
+    `X-WR-TIMEZONE:${CALENDAR_TIME_ZONE}`,
+    ...buildTimeZoneLines(),
+  ];
+
+  for (const shift of shifts) {
+    calendarLines.push(...buildEventLines(shift, worker, stamp, options));
+  }
+
+  calendarLines.push("END:VCALENDAR");
+
+  return {
+    content: `${calendarLines.map(foldIcsLine).join("\r\n")}\r\n`,
+    eventCount: shifts.length,
+    fileName: `ca-work-schedule-${slugify(worker.name)}-${weekStartDate}.ics`,
+    weekStartDate,
+  };
+}
+
+export function downloadWorkerCalendar(schedule, options) {
+  const calendar = buildWorkerCalendar(schedule, options);
+
+  if (calendar.eventCount === 0) {
+    throw new Error("No matching shifts were found for that worker and week.");
+  }
+
+  const blob = new Blob([calendar.content], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = calendar.fileName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+
+  return calendar;
+}
+
+function createDialogElements() {
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop is-hidden";
+  backdrop.innerHTML = `
+    <section class="shift-editor compact-editor ics-export-dialog" role="dialog" aria-modal="true" aria-labelledby="ics-export-title">
+      <header class="shift-editor-header">
+        <div>
+          <p class="eyebrow">Viewer Calendar</p>
+          <h2 id="ics-export-title">Download Calendar File</h2>
+        </div>
+        <button type="button" class="icon-button" data-ics-action="cancel" aria-label="Close calendar download">x</button>
+      </header>
+
+      <form class="shift-editor-form" novalidate>
+        <div class="form-errors" aria-live="polite" hidden></div>
+
+        <label>
+          <span>Worker</span>
+          <select name="workerId" required></select>
+        </label>
+
+        <label>
+          <span>Week Containing</span>
+          <input name="weekDate" type="date" required />
+        </label>
+        <p class="field-help ics-week-range"></p>
+
+        <fieldset class="editor-fieldset">
+          <legend>Include</legend>
+          <div class="ics-option-list">
+            <label class="checkbox-row">
+              <input name="includeNotes" type="checkbox" />
+              <span>Notes and descriptions</span>
+            </label>
+            <label class="checkbox-row">
+              <input name="includeClass" type="checkbox" />
+              <span>Class shifts</span>
+            </label>
+            <label class="checkbox-row">
+              <input name="includeOff" type="checkbox" />
+              <span>OFF shifts</span>
+            </label>
+            <label class="checkbox-row">
+              <input name="includeOnCall" type="checkbox" />
+              <span>On Call and Backup On Call shifts</span>
+            </label>
+          </div>
+        </fieldset>
+
+        <p class="ics-snapshot-note">
+          This downloads a snapshot .ics file. Import it into Google Calendar, Apple Calendar, Outlook, or another calendar app. It will not auto-update if the schedule changes later.
+        </p>
+
+        <footer class="shift-editor-actions align-end">
+          <div>
+            <button type="button" class="secondary-button" data-ics-action="cancel">Cancel</button>
+            <button type="submit" class="primary-button">Download .ics</button>
+          </div>
+        </footer>
+      </form>
+    </section>
+  `;
+
+  const form = backdrop.querySelector("form");
+  const weekDate = form.elements.weekDate;
+
+  form.addEventListener("submit", handleSubmit);
+  weekDate.addEventListener("change", updateWeekRange);
+
+  for (const button of backdrop.querySelectorAll('[data-ics-action="cancel"]')) {
+    button.addEventListener("click", () => closeDialog({ action: "cancel" }));
+  }
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !backdrop.classList.contains("is-hidden")) {
+      closeDialog({ action: "cancel" });
+    }
+  });
+
+  document.body.append(backdrop);
+
+  return {
+    backdrop,
+    errors: backdrop.querySelector(".form-errors"),
+    form,
+    weekDate,
+    weekRange: backdrop.querySelector(".ics-week-range"),
+    worker: form.elements.workerId,
+  };
+}
+
+function populateDialog() {
+  dialogElements.errors.replaceChildren();
+  dialogElements.errors.hidden = true;
+  dialogElements.worker.replaceChildren();
+
+  for (const worker of activeSchedule.workers) {
+    const option = document.createElement("option");
+    option.value = worker.id;
+    option.textContent = worker.name;
+    dialogElements.worker.append(option);
+  }
+
+  dialogElements.weekDate.value = activeSchedule.weekStartDate;
+  dialogElements.form.elements.includeNotes.checked = true;
+  dialogElements.form.elements.includeClass.checked = true;
+  dialogElements.form.elements.includeOff.checked = false;
+  dialogElements.form.elements.includeOnCall.checked = true;
+  updateWeekRange();
+}
+
+function handleSubmit(event) {
+  event.preventDefault();
+
+  try {
+    const calendar = downloadWorkerCalendar(activeSchedule, {
+      workerId: dialogElements.worker.value,
+      weekDate: dialogElements.weekDate.value,
+      includeNotes: dialogElements.form.elements.includeNotes.checked,
+      includeClass: dialogElements.form.elements.includeClass.checked,
+      includeOff: dialogElements.form.elements.includeOff.checked,
+      includeOnCall: dialogElements.form.elements.includeOnCall.checked,
+    });
+
+    closeDialog({
+      action: "download",
+      eventCount: calendar.eventCount,
+      fileName: calendar.fileName,
+    });
+  } catch (error) {
+    const message = document.createElement("p");
+    message.textContent = error instanceof Error ? error.message : "Calendar download failed.";
+    dialogElements.errors.replaceChildren(message);
+    dialogElements.errors.hidden = false;
+  }
+}
+
+function updateWeekRange() {
+  const value = dialogElements.weekDate.value;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    dialogElements.weekRange.textContent = "";
+    return;
+  }
+
+  const weekStartDate = getWeekStartDate(value, activeSchedule.settings.weekStartsOn);
+  dialogElements.weekRange.textContent = `Downloads ${formatWeekRange(weekStartDate)}.`;
+}
+
+function closeDialog(result) {
+  dialogElements.backdrop.classList.add("is-hidden");
+  activeSchedule = null;
+
+  const resolve = activeResolve;
+  activeResolve = null;
+
+  resolve?.(result);
+}
+
+function buildEventLines(shift, worker, stamp, options) {
+  const endDate = timeToMinutes(shift.endTime) <= timeToMinutes(shift.startTime)
+    ? addDays(shift.date, 1)
+    : shift.date;
+  const phoneCoverage = getPhoneCoverageLabels(shift);
+  const summarySuffix = phoneCoverage.length && !["On Call", "Backup On Call"].includes(shift.shiftType)
+    ? ` (${phoneCoverage.join(" + ")})`
+    : "";
+  const summary = `${shift.label || shift.shiftType || "Shift"}${summarySuffix}`;
+  const descriptionParts = [];
+
+  if (options.includeNotes) {
+    descriptionParts.push(`Worker: ${worker.name}`);
+    descriptionParts.push(`Shift type: ${shift.shiftType || shift.name || "Other"}`);
+
+    if (phoneCoverage.length) {
+      descriptionParts.push(`Phone coverage: ${phoneCoverage.join(" and ")}`);
+    }
+
+    if (shift.notes?.trim()) {
+      descriptionParts.push("", shift.notes.trim());
+    }
+  }
+
+  const lines = [
+    "BEGIN:VEVENT",
+    `UID:${escapeIcsText(`${shift.id}-${shift.date}@conference-assistant-scheduler`)}`,
+    `DTSTAMP:${stamp}`,
+    `DTSTART;TZID=${CALENDAR_TIME_ZONE}:${formatLocalDateTime(shift.date, shift.startTime)}`,
+    `DTEND;TZID=${CALENDAR_TIME_ZONE}:${formatLocalDateTime(endDate, shift.endTime)}`,
+    `SUMMARY:${escapeIcsText(summary)}`,
+  ];
+
+  if (descriptionParts.length) {
+    lines.push(`DESCRIPTION:${escapeIcsText(descriptionParts.join("\n"))}`);
+  }
+
+  lines.push("END:VEVENT");
+  return lines;
+}
+
+function getPhoneCoverageLabels(shift) {
+  const labels = [];
+
+  if (shift.shiftType === "On Call" || shift.alsoOnCall) {
+    labels.push("On Call");
+  }
+
+  if (shift.shiftType === "Backup On Call" || shift.alsoBackupOnCall) {
+    labels.push("Backup On Call");
+  }
+
+  return labels;
+}
+
+function buildTimeZoneLines() {
+  return [
+    "BEGIN:VTIMEZONE",
+    `TZID:${CALENDAR_TIME_ZONE}`,
+    `X-LIC-LOCATION:${CALENDAR_TIME_ZONE}`,
+    "BEGIN:DAYLIGHT",
+    "TZOFFSETFROM:-0700",
+    "TZOFFSETTO:-0600",
+    "TZNAME:MDT",
+    "DTSTART:19700308T020000",
+    "RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU",
+    "END:DAYLIGHT",
+    "BEGIN:STANDARD",
+    "TZOFFSETFROM:-0600",
+    "TZOFFSETTO:-0700",
+    "TZNAME:MST",
+    "DTSTART:19701101T020000",
+    "RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU",
+    "END:STANDARD",
+    "END:VTIMEZONE",
+  ];
+}
+
+function formatLocalDateTime(date, time) {
+  return `${date.replaceAll("-", "")}T${time.replace(":", "")}00`;
+}
+
+function formatUtcTimestamp(date) {
+  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+}
+
+function escapeIcsText(value) {
+  return String(value ?? "")
+    .replaceAll("\\", "\\\\")
+    .replaceAll("\r\n", "\n")
+    .replaceAll("\r", "\n")
+    .replaceAll("\n", "\\n")
+    .replaceAll(";", "\\;")
+    .replaceAll(",", "\\,");
+}
+
+function foldIcsLine(line) {
+  const encoder = new TextEncoder();
+  const parts = [];
+  let current = "";
+  let currentBytes = 0;
+  let limit = 75;
+
+  for (const character of line) {
+    const characterBytes = encoder.encode(character).length;
+
+    if (current && currentBytes + characterBytes > limit) {
+      parts.push(parts.length === 0 ? current : ` ${current}`);
+      current = character;
+      currentBytes = characterBytes;
+      limit = 74;
+    } else {
+      current += character;
+      currentBytes += characterBytes;
+    }
+  }
+
+  if (current || parts.length === 0) {
+    parts.push(parts.length === 0 ? current : ` ${current}`);
+  }
+
+  return parts.join("\r\n");
+}
+
+function slugify(value) {
+  return String(value ?? "worker")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase() || "worker";
+}

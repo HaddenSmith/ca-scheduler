@@ -1,7 +1,9 @@
-# Default Schedule Data
+# Static Schedule Data
 
-`default-schedule.json` is temporary seed data for the static GitHub Pages / single-user version of the Conference Assistant Scheduler.
+`published-schedule.json` is the temporary static schedule shown to workers in Viewer Mode. To publish an updated schedule without a backend, export JSON from edit mode and replace this file in GitHub.
 
-On first load, the app tries local browser autosave first. If there is no local autosave, it loads this JSON file. Future Box, backend, or shared-storage work can replace this source without changing the core schedule model.
+`default-schedule.json` is fallback/sample data. Viewer Mode uses it only when the published file is unavailable or invalid. Edit mode uses local browser autosave first, then the published file, then this fallback file.
+
+Both files use the same validated schedule JSON format. Future Box, backend, or shared-storage work can replace these static sources without changing the core schedule model.
 
 Do not publish real worker names or schedule details publicly unless your workplace has approved it.

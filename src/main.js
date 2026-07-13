@@ -29,6 +29,7 @@ import {
   updateOnCallAssignment,
 } from "./scheduleState.js";
 import { downloadScheduleJson, parseScheduleJson } from "./jsonHelpers.js";
+import { openIcsExportDialog } from "./icsExport.js";
 import {
   clearLocalAutosave,
   loadLocalAutosave,
@@ -52,6 +53,7 @@ import {
 } from "./validation.js";
 import { openWorkerManager } from "./workerManager.js";
 
+const PUBLISHED_SCHEDULE_URL = "./data/published-schedule.json";
 const DEFAULT_SCHEDULE_URL = "./data/default-schedule.json";
 const STATUS_AUTO_DISMISS_MS = 15000;
 const AUTO_DISMISS_STATUS_TONES = new Set(["success", "info"]);
@@ -78,7 +80,10 @@ const importJsonInput = getOptionalElement("#json-import-input");
 const settingsButton = getOptionalElement(".settings-button");
 const autosaveStatus = getRequiredElement("#autosave-status");
 const exportReminder = getRequiredElement("#export-reminder");
+const localSaveNote = getOptionalElement(".local-save-note");
 const adminActionsGroup = getOptionalElement(".admin-actions");
+const viewerActionsGroup = getOptionalElement(".viewer-actions");
+const calendarDownloadButton = getOptionalElement(".calendar-download-button");
 const previousWeekButton = getRequiredElement(".previous-week-button");
 const currentWeekButton = getRequiredElement(".current-week-button");
 const dateJumpButton = getOptionalElement(".date-jump-button");
@@ -97,6 +102,7 @@ for (const button of viewModeButtons) {
 addOptionalListener(importJsonInput, "change", handleImportFile);
 
 addOptionalListener(settingsButton, "click", handleSettingsAction);
+addOptionalListener(calendarDownloadButton, "click", handleCalendarDownload);
 addOptionalListener(dateJumpButton, "click", handleDateJumpRequest);
 addOptionalListener(dateJumpInput, "change", handleDateJumpChange);
 
@@ -148,6 +154,19 @@ async function handleSettingsAction() {
 
   if (result.action === "load-default") {
     await handleLoadDefaultSchedule();
+  }
+}
+
+async function handleCalendarDownload() {
+  if (!state.readOnly) {
+    return;
+  }
+
+  const result = await openIcsExportDialog(schedule);
+
+  if (result.action === "download") {
+    const eventLabel = result.eventCount === 1 ? "event" : "events";
+    showFileStatus(`Downloaded ${result.fileName} with ${result.eventCount} ${eventLabel}.`, "success");
   }
 }
 
@@ -291,6 +310,49 @@ async function initializeApp() {
 }
 
 async function loadStartupSchedule() {
+  if (state.readOnly) {
+    return loadViewerStartupSchedule();
+  }
+
+  return loadEditorStartupSchedule();
+}
+
+async function loadViewerStartupSchedule() {
+  try {
+    const publishedResult = await loadPublishedScheduleFile();
+
+    return createFileStartupResult(publishedResult, {
+      source: "published",
+      statusMessage: "Loaded published schedule.",
+      statusTone: "success",
+    });
+  } catch {
+    try {
+      const defaultResult = await loadDefaultScheduleFile();
+
+      return createFileStartupResult(defaultResult, {
+        source: "default",
+        statusMessage: "Published schedule was unavailable, so the fallback schedule was loaded.",
+        statusTone: "info",
+      });
+    } catch {
+      return {
+        hasLocalAutosave: false,
+        hasUnexportedChanges: false,
+        localSaveError: "",
+        localSavedAt: "",
+        localStorageAvailable: true,
+        schedule: structuredClone(sampleSchedule),
+        shouldSaveLocalCopy: false,
+        source: "sample",
+        statusMessage: "Published and fallback schedule files were unavailable, so sample data was loaded.",
+        statusTone: "info",
+      };
+    }
+  }
+}
+
+async function loadEditorStartupSchedule() {
   const local = loadLocalAutosave();
 
   if (local.found && local.isValid) {
@@ -315,7 +377,7 @@ async function loadStartupSchedule() {
     : "";
 
   try {
-    const defaultResult = await loadDefaultScheduleFile();
+    const publishedResult = await loadPublishedScheduleFile();
 
     return {
       hasLocalAutosave: false,
@@ -323,35 +385,76 @@ async function loadStartupSchedule() {
       localSaveError: localWarning.trim(),
       localSavedAt: "",
       localStorageAvailable: local.isAvailable !== false,
-      schedule: defaultResult.schedule,
+      schedule: publishedResult.schedule,
       shouldSaveLocalCopy: true,
-      source: "default",
-      statusMessage: `${localWarning}Loaded default schedule.`,
+      source: "published",
+      statusMessage: `${localWarning}Loaded published schedule.`,
       statusTone: localWarning ? "info" : "success",
     };
   } catch {
-    return {
-      hasLocalAutosave: false,
-      hasUnexportedChanges: false,
-      localSaveError: localWarning.trim(),
-      localSavedAt: "",
-      localStorageAvailable: local.isAvailable !== false,
-      schedule: structuredClone(sampleSchedule),
-      shouldSaveLocalCopy: true,
-      source: "sample",
-      statusMessage: `${localWarning}Default schedule was unavailable, so sample data was loaded.`,
-      statusTone: "info",
-    };
+    try {
+      const defaultResult = await loadDefaultScheduleFile();
+
+      return {
+        hasLocalAutosave: false,
+        hasUnexportedChanges: false,
+        localSaveError: localWarning.trim(),
+        localSavedAt: "",
+        localStorageAvailable: local.isAvailable !== false,
+        schedule: defaultResult.schedule,
+        shouldSaveLocalCopy: true,
+        source: "default",
+        statusMessage: `${localWarning}Published schedule was unavailable, so the fallback schedule was loaded.`,
+        statusTone: "info",
+      };
+    } catch {
+      return {
+        hasLocalAutosave: false,
+        hasUnexportedChanges: false,
+        localSaveError: localWarning.trim(),
+        localSavedAt: "",
+        localStorageAvailable: local.isAvailable !== false,
+        schedule: structuredClone(sampleSchedule),
+        shouldSaveLocalCopy: true,
+        source: "sample",
+        statusMessage: `${localWarning}Published and fallback schedule files were unavailable, so sample data was loaded.`,
+        statusTone: "info",
+      };
+    }
   }
 }
 
-// Temporary static default for single-user/GitHub Pages deployment.
-// Later backend or Box loading can replace this without changing the data model.
+function createFileStartupResult(result, { source, statusMessage, statusTone }) {
+  return {
+    hasLocalAutosave: false,
+    hasUnexportedChanges: false,
+    localSaveError: "",
+    localSavedAt: "",
+    localStorageAvailable: true,
+    schedule: result.schedule,
+    shouldSaveLocalCopy: false,
+    source,
+    statusMessage,
+    statusTone,
+  };
+}
+
+// Static schedule published for read-only viewers. This is temporary until a
+// backend, Box, or database becomes the shared source of truth.
+async function loadPublishedScheduleFile() {
+  return loadScheduleFile(PUBLISHED_SCHEDULE_URL, "Published schedule file");
+}
+
+// Fallback/sample deployment data kept separate from the published schedule.
 async function loadDefaultScheduleFile() {
-  const response = await fetch(DEFAULT_SCHEDULE_URL, { cache: "no-store" });
+  return loadScheduleFile(DEFAULT_SCHEDULE_URL, "Default schedule file");
+}
+
+async function loadScheduleFile(url, label) {
+  const response = await fetch(url, { cache: "no-store" });
 
   if (!response.ok) {
-    throw new Error("Default schedule file could not be loaded.");
+    throw new Error(`${label} could not be loaded.`);
   }
 
   const result = parseScheduleJson(await response.text());
@@ -501,9 +604,17 @@ function updatePersistenceStatus() {
 
   if (state.readOnly) {
     autosaveStatus.textContent = `Read only. Showing ${sourceLabel}.`;
-    exportReminder.textContent = "Viewer Mode cannot edit, drag, resize, import, or export.";
+    exportReminder.textContent = "Viewer Mode cannot edit, drag, resize, or import schedule data.";
     exportReminder.dataset.tone = "info";
+
+    if (localSaveNote) {
+      localSaveNote.textContent = "Calendar downloads are one-time snapshots and do not update automatically.";
+    }
     return;
+  }
+
+  if (localSaveNote) {
+    localSaveNote.textContent = "Export JSON to back up or share the schedule. Local autosave is not shared across computers or browsers.";
   }
 
   if (state.localSaveError) {
@@ -535,7 +646,11 @@ function getStartupSourceLabel() {
   }
 
   if (state.startupSource === "default") {
-    return "the default schedule";
+    return "the fallback schedule";
+  }
+
+  if (state.startupSource === "published") {
+    return "the published schedule";
   }
 
   if (state.startupSource === "import") {
@@ -882,6 +997,15 @@ function syncModeControls() {
 
   if (adminActionsGroup) {
     adminActionsGroup.hidden = state.readOnly;
+  }
+
+  if (viewerActionsGroup) {
+    viewerActionsGroup.hidden = !state.readOnly;
+  }
+
+  if (calendarDownloadButton) {
+    calendarDownloadButton.hidden = !state.readOnly;
+    calendarDownloadButton.disabled = !state.readOnly;
   }
 }
 

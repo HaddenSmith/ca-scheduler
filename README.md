@@ -38,15 +38,16 @@ This project was designed and directed by Hadden Smith for the BYU Helaman Halls
 - JSON export/import for restoring the full local schedule state, available from Settings -> Data / Backup.
 - Single-computer localStorage autosave in edit mode.
 - Clear Local Autosave and Load Default Schedule controls in Settings -> Data / Backup.
-- Static default schedule loading from `data/default-schedule.json`.
+- Static published schedule loading from `data/published-schedule.json`, with `data/default-schedule.json` as fallback.
 - Viewer mode with `index.html?mode=view` or `viewer.html`.
 - Optional warning display in Viewer Mode, controlled from edit-mode Settings.
+- Viewer-only worker calendar download as a one-time `.ics` snapshot.
 
 ## Edit Mode vs Viewer Mode
 
 Edit mode is the default. It allows creating, editing, dragging, resizing, copying, repeating, importing, exporting, changing settings, and managing workers. The main toolbar stays focused on week navigation, view mode, and Settings; worker and data tools live inside Settings.
 
-Viewer mode is read-only. It keeps schedule display, week navigation, view switching, totals, shift details, and Desk Coverage display, but hides or disables editing controls. Warnings can be shown or hidden in Viewer Mode with the edit-mode setting.
+Viewer mode is read-only. It loads `data/published-schedule.json` and ignores browser localStorage, so workers see the schedule currently published with the site. It keeps schedule display, week navigation, view switching, totals, shift details, Desk Coverage display, and a worker calendar download. Warnings can be shown or hidden in Viewer Mode with the edit-mode setting.
 
 Open viewer mode with:
 
@@ -59,6 +60,8 @@ or open:
 ```text
 viewer.html
 ```
+
+Use the download icon in Viewer Mode to choose one worker and one week, then download an `.ics` file for Google Calendar, Apple Calendar, Outlook, or another calendar app. This is a one-time snapshot, not a subscribed calendar. When the published schedule changes, download and import a new file.
 
 ## JSON Import and Export
 
@@ -78,17 +81,25 @@ Use **Settings -> Data / Backup -> Clear Local Autosave** to remove the saved br
 
 If the app says "Unsaved changes - open Settings -> Data / Backup -> Export JSON," local autosave may already have saved the browser copy, but the schedule has not been exported as a portable file since the last edit.
 
-## Default Schedule
+## Published and Fallback Schedules
 
-The static default file lives at:
+The static schedule shown to workers lives at:
+
+```text
+data/published-schedule.json
+```
+
+For the current static workflow, a manager/editor exports schedule JSON and Hadden manually replaces `data/published-schedule.json` in GitHub. Viewer Mode always tries this file first and does not read local autosave.
+
+The fallback file lives at:
 
 ```text
 data/default-schedule.json
 ```
 
-On first load, the app tries local autosave first. If there is no local autosave, it fetches this default JSON file. If the file is missing or invalid, the app falls back to `src/sampleData.js`.
+In edit mode, the app tries local autosave first. If there is no valid local autosave, it tries the published schedule, then the fallback schedule, then `src/sampleData.js`. In Viewer Mode, it tries the published schedule, then the fallback schedule, then sample data.
 
-The default schedule file may contain real worker names or shift details. Do not publish it publicly on GitHub Pages unless your workplace has approved sharing that information.
+The static schedule files may contain real worker names or shift details. Do not publish them on GitHub Pages unless your workplace has approved sharing that information.
 
 ## Local Usage
 
@@ -112,15 +123,17 @@ This app is static and should work on GitHub Pages as long as the repository pub
 - `index.html`
 - `viewer.html`
 - `src/...`
+- `data/published-schedule.json`
 - `data/default-schedule.json`
 
-To share a schedule today, export JSON from Settings -> Data / Backup and upload or send the exported file. To continue on the same computer/browser later, local autosave should restore the last browser copy. To start fresh, clear local autosave or load the default schedule from Settings -> Data / Backup.
+To publish a schedule today, export JSON from Settings -> Data / Backup and replace `data/published-schedule.json` in GitHub. Workers should use `viewer.html` or `index.html?mode=view`. To continue editing on the same computer/browser, local autosave should restore the editor copy. To start fresh, clear local autosave or load the default schedule from Settings -> Data / Backup.
 
 ## File Map
 
 - `index.html`: App shell.
 - `viewer.html`: Lightweight viewer entry point.
-- `data/default-schedule.json`: Static default schedule used when no local autosave exists.
+- `data/published-schedule.json`: Static schedule shown in Viewer Mode.
+- `data/default-schedule.json`: Static fallback/sample schedule used when the published file is unavailable.
 - `data/README.md`: Notes about default schedule data.
 - `src/main.js`: App startup, state wiring, render flow, import/export, and top-level handlers.
 - `src/localStorageAutosave.js`: Single-browser local autosave helpers.
@@ -138,6 +151,7 @@ To share a schedule today, export JSON from Settings -> Data / Backup and upload
 - `src/hourCalculations.js`: Scheduled hour math, including week-bounded overnight hour totals.
 - `src/validation.js`: Warning rules.
 - `src/jsonHelpers.js`: JSON import/export helpers.
+- `src/icsExport.js`: Viewer-only worker/week calendar snapshot export.
 - `src/shiftEditor.js`: Add/edit/delete normal shift modal.
 - `src/deskCoverageEditor.js`: Add/edit/delete Desk Coverage modal.
 - `src/timeUtils.js`: Time parsing, normalization, display, and schedule-range helpers.
@@ -153,6 +167,7 @@ To share a schedule today, export JSON from Settings -> Data / Backup and upload
 - No automatic locking or conflict prevention.
 - No cross-computer sync. Local autosave stays in one browser on one computer.
 - No Excel or PDF export yet.
+- Calendar downloads are static snapshots and do not update automatically.
 
 ## Future Work
 

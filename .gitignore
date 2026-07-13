@@ -3,6 +3,7 @@ exports/
 data/*
 !data/README.md
 !data/default-schedule.json
+!data/published-schedule.json
 *.local.json
 *.lock.json
 

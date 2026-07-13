@@ -7,7 +7,7 @@ Use this checklist before moving toward backend, Box, or server work.
 - Load edit mode at `/` and confirm there are no console errors.
 - Load viewer mode at `/index.html?mode=view` and confirm editing controls are hidden.
 - Load `viewer.html` and confirm it opens viewer mode.
-- Confirm GitHub Pages/static paths work with relative `index.html`, `viewer.html`, `src/...`, and `data/default-schedule.json`.
+- Confirm GitHub Pages/static paths work with relative `index.html`, `viewer.html`, `src/...`, `data/published-schedule.json`, and `data/default-schedule.json`.
 - Switch between Detailed Day View and Compact Week View.
 - Use Previous Week, Next Week, and Today.
 - In Detailed Day View, click Today and confirm the page scrolls to today's day section.
@@ -35,9 +35,13 @@ Use this checklist before moving toward backend, Box, or server work.
 
 ## Local Autosave and Default Data
 
-- Open the app in edit mode with empty localStorage and confirm `data/default-schedule.json` loads.
-- Confirm the default schedule has 12 workers and realistic multi-week schedule data.
-- Confirm the default schedule uses clean labels such as Check In, Check Out, Desk, Projects, Staff Meeting, Class, OFF, On Call, Backup On Call, and roving subtype labels.
+- Open the app in edit mode with a valid local autosave and confirm the local copy takes precedence over static schedule files.
+- Open the app in edit mode with empty localStorage and confirm `data/published-schedule.json` loads first.
+- Open Viewer Mode with local autosave present and confirm the viewer ignores it and loads `data/published-schedule.json`.
+- Temporarily make `data/published-schedule.json` unavailable or invalid and confirm Viewer Mode falls back to `data/default-schedule.json` with a subtle status message.
+- Temporarily make both static files unavailable or invalid and confirm sample data loads without a startup crash.
+- Confirm the published schedule has 12 workers and realistic multi-week schedule data.
+- Confirm the published schedule uses clean labels such as Check In, Check Out, Desk, Projects, Staff Meeting, Class, OFF, On Call, Backup On Call, and roving subtype labels.
 - Make a small edit and confirm the local save status updates.
 - Refresh the page and confirm the edit restores from local autosave.
 - Confirm the app shows "Unsaved changes - open Settings -> Data / Backup -> Export JSON" after an edit.
@@ -47,7 +51,25 @@ Use this checklist before moving toward backend, Box, or server work.
 - Use Clear Local Autosave from Settings -> Data / Backup, confirm the warning prompt appears, and confirm the current open schedule stays visible.
 - Refresh after clearing local autosave and confirm the default schedule loads again.
 - Use Load Default Schedule from Settings -> Data / Backup, confirm the warning prompt appears, and confirm current in-memory/local schedule is replaced.
-- Temporarily remove or rename `data/default-schedule.json` during local testing and confirm sample data loads gracefully.
+- Confirm clearing editor localStorage returns edit mode to the published schedule on refresh.
+
+## Viewer Calendar Download
+
+- Confirm the calendar download icon appears only in Viewer Mode.
+- Confirm the icon opens the Download Calendar File modal without enabling editing.
+- Confirm the worker list is populated from the published schedule.
+- Confirm the currently displayed week is selected by default.
+- Choose another date and confirm the modal uses the week containing that date according to the configured week start day.
+- Download a worker calendar and confirm the file uses a readable worker/week name and valid `.ics` structure.
+- Confirm the calendar includes only the selected worker's shifts whose start dates are in the selected week.
+- Confirm Desk Coverage rail blocks are excluded.
+- Confirm an overnight shift ends on the following calendar date in the `.ics` file.
+- Confirm notes and phone-coverage descriptions are included when enabled.
+- Confirm normal shifts with Also On Call or Also Backup On Call include that role in the event name.
+- Confirm Class is included by default and can be excluded.
+- Confirm OFF is excluded by default and can be included.
+- Confirm standalone On Call and Backup On Call are included by default and can be excluded.
+- Confirm the modal explains that the calendar is a snapshot and will not auto-update.
 
 ## JSON
 
