@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -6,6 +7,7 @@ import {
   getCalendarWorkerOptions,
   isShiftIncludedInCalendar,
 } from "../src/icsExport.js";
+import { parseScheduleJson } from "../src/jsonHelpers.js";
 import { makeSchedule, makeShift, makeWorker } from "./fixtures.js";
 
 const FIXED_NOW = new Date("2026-07-01T12:00:00Z");
@@ -177,6 +179,27 @@ test("generates backup-only reminders and filters other workers", () => {
   assert.equal((result.content.match(/SUMMARY:Backup On Call Tonight/g) ?? []).length, 1);
   assert.doesNotMatch(result.content, /SUMMARY:On Call Tonight/);
   assert.doesNotMatch(result.content, /20260712T233000/);
+});
+
+test("matches Hadden's published July 25-31 nightly assignments exactly", () => {
+  const fileText = readFileSync(new URL("../data/published-schedule.json", import.meta.url), "utf8");
+  const parsed = parseScheduleJson(fileText);
+  assert.equal(parsed.isValid, true);
+
+  const result = buildWorkerCalendar(parsed.schedule, {
+    workerId: "hadden",
+    weekDate: "2026-07-25",
+    includeNightlyReminder: true,
+    now: FIXED_NOW,
+  });
+  const reminderStarts = [...result.content.matchAll(
+    /DTSTART;TZID=America\/Denver:(202607(?:2[5-9]|3[01])T233000)/g,
+  )].map((match) => match[1]);
+
+  assert.equal(result.reminderEventCount, 2);
+  assert.deepEqual(reminderStarts, ["20260727T233000", "20260731T233000"]);
+  assert.equal((result.content.match(/SUMMARY:On Call Tonight/g) ?? []).length, 2);
+  assert.equal((result.content.match(/SUMMARY:Backup On Call Tonight/g) ?? []).length, 0);
 });
 
 test("does not infer reminders from a CSA roving label", () => {
