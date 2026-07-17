@@ -209,7 +209,7 @@ function createSettingsElements() {
           <div class="settings-action-grid">
             <button type="button" class="secondary-button" data-settings-action="import-json">Import JSON</button>
             <button type="button" class="secondary-button" data-settings-action="export-json">Export JSON</button>
-            <button type="button" class="secondary-button" data-settings-action="clear-autosave">Clear Local Autosave</button>
+            <button type="button" class="danger-button subtle-danger-button" data-settings-action="clear-autosave">Clear Local Autosave</button>
             <button type="button" class="danger-button subtle-danger-button" data-settings-action="load-published">Load Published Schedule</button>
           </div>
         </fieldset>
