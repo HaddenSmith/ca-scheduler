@@ -52,6 +52,10 @@ Use this checklist before moving toward backend, Box, or server work.
 - Refresh after clearing local autosave and confirm the default schedule loads again.
 - Use Load Published Schedule from Settings -> Data / Backup, confirm the warning prompt appears, and confirm current in-memory/local schedule is replaced.
 - Confirm clearing editor localStorage returns edit mode to the published schedule on refresh.
+- Add `scheduleVersion` metadata to a published file and verify editor mode shows the newer-published notice while preserving local edits.
+- Dismiss the newer-published notice and verify it stays dismissed until the next load or a newer comparison.
+- Load Published Schedule from Settings and verify the newer-published notice clears.
+- Verify older local autosaves and JSON files without publication metadata load without errors and without a false notice.
 
 ## Viewer Calendar Download
 

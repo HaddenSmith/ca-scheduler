@@ -113,7 +113,7 @@ test("keeps a shift UID stable when the shift date changes", () => {
   assert.equal(first, moved);
 });
 
-test("deduplicates nightly reminders across shifts and nightly assignments", () => {
+test("nightly reminders use dedicated assignments and deduplicate by date and role", () => {
   const schedule = makeSchedule({
     shifts: [
       makeShift({ shiftType: "On Call", countsTowardHours: false, alsoOnCall: true }),
@@ -135,6 +135,48 @@ test("deduplicates nightly reminders across shifts and nightly assignments", () 
   assert.equal((result.content.match(/TRANSP:TRANSPARENT/g) ?? []).length, 2);
   assert.match(result.content, /DTSTART;TZID=America\/Denver:20260711T233000/);
   assert.match(result.content, /DTEND;TZID=America\/Denver:20260711T234500/);
+});
+
+test("generates reminders only for the selected worker's exact nightly assignments", () => {
+  const schedule = makeSchedule({
+    workers: [makeWorker(), makeWorker("worker-2", "Bailey")],
+    onCallAssignments: [
+      { date: "2026-07-13", primaryWorkerId: "worker-1", backupWorkerId: "" },
+      { date: "2026-07-14", primaryWorkerId: "", backupWorkerId: "worker-1" },
+      { date: "2026-07-15", primaryWorkerId: "worker-2", backupWorkerId: "worker-2" },
+      { date: "2026-07-16", primaryWorkerId: "worker-1", backupWorkerId: "" },
+    ],
+  });
+  const result = build(schedule, { includeNightlyReminder: true });
+
+  assert.equal(result.reminderEventCount, 3);
+  assert.equal((result.content.match(/SUMMARY:On Call Tonight/g) ?? []).length, 2);
+  assert.equal((result.content.match(/SUMMARY:Backup On Call Tonight/g) ?? []).length, 1);
+  assert.doesNotMatch(result.content, /20260715T233000/);
+});
+
+test("does not generate reminders when the worker has no nightly assignments", () => {
+  const result = build(makeSchedule({
+    shifts: [makeShift({ shiftType: "On Call", countsTowardHours: false, alsoOnCall: true })],
+  }), { includeNightlyReminder: true });
+
+  assert.equal(result.reminderEventCount, 0);
+});
+
+test("generates backup-only reminders and filters other workers", () => {
+  const schedule = makeSchedule({
+    workers: [makeWorker(), makeWorker("worker-2", "Bailey")],
+    onCallAssignments: [
+      { date: "2026-07-11", primaryWorkerId: "worker-2", backupWorkerId: "worker-1" },
+      { date: "2026-07-12", primaryWorkerId: "worker-2", backupWorkerId: "worker-2" },
+    ],
+  });
+  const result = build(schedule, { includeNightlyReminder: true });
+
+  assert.equal(result.reminderEventCount, 1);
+  assert.equal((result.content.match(/SUMMARY:Backup On Call Tonight/g) ?? []).length, 1);
+  assert.doesNotMatch(result.content, /SUMMARY:On Call Tonight/);
+  assert.doesNotMatch(result.content, /20260712T233000/);
 });
 
 test("does not infer reminders from a CSA roving label", () => {

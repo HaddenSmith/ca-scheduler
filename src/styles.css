@@ -174,6 +174,25 @@ textarea {
   line-height: 1.3;
 }
 
+.published-update-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -4px 0 14px;
+  padding: 9px 12px;
+  border: 1px solid #d6a23a;
+  border-radius: 8px;
+  color: #684b08;
+  background: #fff8df;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.published-update-notice .text-button {
+  flex: 0 0 auto;
+}
+
 .toolbar,
 .summary-section,
 .day-section {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  compareScheduleVersions,
   createScheduleFile,
   parseScheduleJson,
   serializeSchedule,
@@ -39,6 +40,33 @@ test("round trips the current schema including worker order and Desk Coverage", 
   assert.deepEqual(parsed.schedule.shifts[0].roveSubtypes, ["R-3", "CSA"]);
   assert.equal(parsed.schedule.deskCoverage.length, 1);
   assert.equal(parsed.schedule.settings.viewerWarningsEnabled, false);
+});
+
+test("preserves and compares published schedule version metadata", () => {
+  const local = makeSchedule({ scheduleVersion: 4, publishedAt: "2026-07-15T12:00:00.000Z" });
+  const published = makeSchedule({ scheduleVersion: 5, publishedAt: "2026-07-16T12:00:00.000Z" });
+
+  const file = createScheduleFile(published);
+  const parsed = validateAndNormalizeScheduleFile(file);
+
+  assert.equal(parsed.isValid, true);
+  assert.equal(parsed.schedule.scheduleVersion, 5);
+  assert.equal(compareScheduleVersions(local, parsed.schedule), 1);
+  assert.equal(compareScheduleVersions(parsed.schedule, local), -1);
+  assert.equal(compareScheduleVersions(local, { ...local }), 0);
+});
+
+test("older schedules without published metadata remain compatible", () => {
+  const file = createScheduleFile(makeSchedule());
+  delete file.scheduleVersion;
+  delete file.publishedAt;
+
+  const result = validateAndNormalizeScheduleFile(file);
+
+  assert.equal(result.isValid, true);
+  assert.equal(result.schedule.scheduleVersion, null);
+  assert.equal(result.schedule.publishedAt, "");
+  assert.equal(compareScheduleVersions(result.schedule, makeSchedule()), null);
 });
 
 test("fills older optional fields and migrates roveSubtype", () => {

@@ -11,6 +11,8 @@ The persisted format is a versioned JSON envelope. The current `schemaVersion` i
   exportedAt: "ISO timestamp",
   lastModifiedAt: "ISO timestamp",
   revision: 1,
+  scheduleVersion: 1,       // optional publication version
+  publishedAt: "ISO timestamp", // optional publication timestamp
   data: {
     workers: [],
     shifts: [],
@@ -23,6 +25,9 @@ The persisted format is a versioned JSON envelope. The current `schemaVersion` i
 ```
 
 `revision` is metadata for future synchronization; it is not currently a lock or conflict detector.
+`scheduleVersion` and `publishedAt` are optional publication metadata. Editor mode uses them only to
+notify a manager when a published file is newer than the local autosave. Missing metadata remains
+compatible and does not trigger a comparison.
 
 ## Worker
 

@@ -8,15 +8,23 @@ export const SCHEDULE_FILE_APP_ID = "conference-scheduler";
 
 const ALLOWED_SLOT_MINUTES = new Set([15, 30, 60]);
 
-export function serializeSchedule(schedule) {
-  return JSON.stringify(createScheduleFile(schedule), null, 2);
+export function serializeSchedule(schedule, options = {}) {
+  return JSON.stringify(createScheduleFile(schedule, options), null, 2);
 }
 
-export function createScheduleFile(schedule) {
+export function createScheduleFile(schedule, { asPublished = false } = {}) {
   const now = new Date().toISOString();
   const settings = normalizeSettingsForExport(schedule.settings);
   const shifts = (schedule.shifts ?? []).map((shift) => normalizeShift(shift, settings));
   const deskCoverage = (schedule.deskCoverage ?? []).map((coverage) => normalizeDeskCoverage(coverage, settings));
+  const scheduleVersion = asPublished
+    ? (Number.isFinite(Number(schedule.scheduleVersion))
+      ? Math.max(0, Number(schedule.scheduleVersion)) + 1
+      : 1)
+    : normalizeScheduleVersion(schedule.scheduleVersion);
+  const publishedAt = asPublished
+    ? now
+    : normalizePublishedAt(schedule.publishedAt);
 
   return {
     schemaVersion: SCHEDULE_FILE_SCHEMA_VERSION,
@@ -24,6 +32,8 @@ export function createScheduleFile(schedule) {
     exportedAt: now,
     lastModifiedAt: now,
     revision: schedule.revision ?? 1,
+    ...(scheduleVersion !== null ? { scheduleVersion } : {}),
+    ...(publishedAt ? { publishedAt } : {}),
     data: {
       workers: schedule.workers ?? [],
       shifts,
@@ -40,7 +50,7 @@ export function createScheduleFile(schedule) {
 }
 
 export function downloadScheduleJson(schedule) {
-  const json = serializeSchedule(schedule);
+  const json = serializeSchedule(schedule, { asPublished: true });
   const blob = new Blob([json], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -124,6 +134,8 @@ export function validateAndNormalizeScheduleFile(file) {
       exportedAt: file.exportedAt ?? "",
       lastModifiedAt: file.lastModifiedAt ?? "",
       revision: Number.isInteger(file.revision) ? file.revision : 1,
+      scheduleVersion: normalizeScheduleVersion(file.scheduleVersion),
+      publishedAt: normalizePublishedAt(file.publishedAt),
       schemaVersion: file.schemaVersion,
     },
     schedule: {
@@ -135,8 +147,52 @@ export function validateAndNormalizeScheduleFile(file) {
       onCallAssignments,
       revision: Number.isInteger(file.revision) ? file.revision : 1,
       lastModifiedAt: file.lastModifiedAt ?? file.exportedAt ?? "",
+      scheduleVersion: normalizeScheduleVersion(file.scheduleVersion),
+      publishedAt: normalizePublishedAt(file.publishedAt),
     },
   };
+}
+
+export function compareScheduleVersions(localSchedule, publishedSchedule) {
+  const localVersion = getComparableScheduleVersion(localSchedule);
+  const publishedVersion = getComparableScheduleVersion(publishedSchedule);
+
+  if (!localVersion || !publishedVersion || localVersion.kind !== publishedVersion.kind) {
+    return null;
+  }
+
+  return publishedVersion.value === localVersion.value
+    ? 0
+    : publishedVersion.value > localVersion.value ? 1 : -1;
+}
+
+function getComparableScheduleVersion(schedule) {
+  const version = normalizeScheduleVersion(schedule?.scheduleVersion);
+
+  if (version !== null) {
+    return { kind: "number", value: version };
+  }
+
+  const publishedAt = normalizePublishedAt(schedule?.publishedAt);
+
+  return publishedAt ? { kind: "date", value: Date.parse(publishedAt) } : null;
+}
+
+function normalizeScheduleVersion(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const version = Number(value);
+  return Number.isFinite(version) && version >= 0 ? version : null;
+}
+
+function normalizePublishedAt(value) {
+  if (typeof value !== "string" || !value || Number.isNaN(Date.parse(value))) {
+    return "";
+  }
+
+  return value;
 }
 
 function normalizeWorkers(value, errors) {

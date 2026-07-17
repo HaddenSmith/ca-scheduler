@@ -39,6 +39,7 @@ This project was designed and directed by Hadden Smith for the BYU Helaman Halls
 - Single-computer localStorage autosave in edit mode.
 - Clear Local Autosave and Load Published Schedule controls in Settings -> Data / Backup.
 - Static published schedule loading from `data/published-schedule.json`.
+- Editor-only notice when published schedule metadata is newer than the local autosave; loading the newer schedule always requires an explicit Settings action.
 - Viewer mode with `index.html?mode=view` or `viewer.html`.
 - Optional warning display in Viewer Mode, controlled from edit-mode Settings.
 - Viewer-only worker calendar download as a one-time `.ics` snapshot.
@@ -80,6 +81,8 @@ Local autosave is not a shared backup. It does not sync across computers, browse
 Use **Settings -> Data / Backup -> Clear Local Autosave** to remove the saved browser copy. Use **Settings -> Data / Backup -> Load Published Schedule** to replace the current open schedule with `data/published-schedule.json`.
 
 If the app says "Unsaved changes - open Settings -> Data / Backup -> Export JSON," local autosave may already have saved the browser copy, but the schedule has not been exported as a portable file since the last edit.
+
+Published schedule files may include optional `scheduleVersion` and `publishedAt` metadata. Editor mode compares these values with local autosave metadata and never replaces local work automatically.
 
 ## Published Schedule
 

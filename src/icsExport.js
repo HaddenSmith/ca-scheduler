@@ -300,23 +300,11 @@ export function isShiftIncludedInCalendar(shift) {
     PHONE_COVERAGE_TYPES.has(shiftType);
 }
 
-function getNightlyPhoneReminders(schedule, workerId, weekDates) {
+export function getNightlyPhoneReminders(schedule, workerId, weekDates) {
   const reminders = new Map();
 
-  for (const shift of schedule.shifts ?? []) {
-    if (shift.workerId !== workerId || !weekDates.has(shift.date)) {
-      continue;
-    }
-
-    if (shift.shiftType === "On Call" || shift.alsoOnCall === true) {
-      addNightlyReminder(reminders, shift.date, "primary");
-    }
-
-    if (shift.shiftType === "Backup On Call" || shift.alsoBackupOnCall === true) {
-      addNightlyReminder(reminders, shift.date, "backup");
-    }
-  }
-
+  // Nightly reminders must come from the dedicated nightly assignment row.
+  // Daytime phone flags and standalone phone shifts are separate concepts.
   for (const assignment of schedule.onCallAssignments ?? []) {
     if (!weekDates.has(assignment.date)) {
       continue;

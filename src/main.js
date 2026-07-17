@@ -28,7 +28,11 @@ import {
   updateShift,
   updateOnCallAssignment,
 } from "./scheduleState.js";
-import { downloadScheduleJson, parseScheduleJson } from "./jsonHelpers.js";
+import {
+  compareScheduleVersions,
+  downloadScheduleJson,
+  parseScheduleJson,
+} from "./jsonHelpers.js";
 import { openIcsExportDialog } from "./icsExport.js";
 import {
   clearLocalAutosave,
@@ -67,6 +71,7 @@ const state = {
   localSavedAt: "",
   localStorageAvailable: true,
   readOnly: isViewerModeFromUrl(),
+  publishedUpdateAvailable: false,
   startupSource: "sample",
   viewMode: "detailed",
 };
@@ -81,6 +86,8 @@ const settingsButton = getOptionalElement(".settings-button");
 const autosaveStatus = getRequiredElement("#autosave-status");
 const exportReminder = getRequiredElement("#export-reminder");
 const localSaveNote = getOptionalElement(".local-save-note");
+const publishedUpdateNotice = getOptionalElement("#published-update-notice");
+const publishedUpdateDismiss = getOptionalElement("#published-update-dismiss");
 const adminActionsGroup = getOptionalElement(".admin-actions");
 const viewerActionsGroup = getOptionalElement(".viewer-actions");
 const calendarDownloadButton = getOptionalElement(".calendar-download-button");
@@ -105,6 +112,10 @@ addOptionalListener(settingsButton, "click", handleSettingsAction);
 addOptionalListener(calendarDownloadButton, "click", handleCalendarDownload);
 addOptionalListener(dateJumpButton, "click", handleDateJumpRequest);
 addOptionalListener(dateJumpInput, "change", handleDateJumpChange);
+addOptionalListener(publishedUpdateDismiss, "click", () => {
+  state.publishedUpdateAvailable = false;
+  updatePublishedUpdateNotice();
+});
 
 async function handleSettingsAction() {
   if (state.readOnly) {
@@ -296,6 +307,7 @@ async function initializeApp() {
   state.localSaveError = startup.localSaveError;
   state.localSavedAt = startup.localSavedAt;
   state.localStorageAvailable = startup.localStorageAvailable;
+  state.publishedUpdateAvailable = Boolean(startup.publishedUpdateAvailable);
   state.startupSource = startup.source;
 
   if (!state.readOnly && !state.hasLocalAutosave && startup.shouldSaveLocalCopy) {
@@ -346,6 +358,15 @@ async function loadEditorStartupSchedule() {
   const local = loadLocalAutosave();
 
   if (local.found && local.isValid) {
+    let publishedUpdateAvailable = false;
+
+    try {
+      const publishedResult = await loadPublishedScheduleFile();
+      publishedUpdateAvailable = compareScheduleVersions(local.schedule, publishedResult.schedule) === 1;
+    } catch {
+      // Published-version comparison is advisory; local autosave remains usable.
+    }
+
     return {
       hasLocalAutosave: true,
       hasUnexportedChanges: Boolean(local.dirty),
@@ -359,6 +380,7 @@ async function loadEditorStartupSchedule() {
         ? `Loaded local autosave. ${local.warnings.join(" ")}`
         : "",
       statusTone: "info",
+      publishedUpdateAvailable,
     };
   }
 
@@ -380,6 +402,7 @@ async function loadEditorStartupSchedule() {
       source: "published",
       statusMessage: `${localWarning}Loaded published schedule.`,
       statusTone: localWarning ? "info" : "success",
+      publishedUpdateAvailable: false,
     };
   } catch {
     return {
@@ -393,6 +416,7 @@ async function loadEditorStartupSchedule() {
       source: "sample",
       statusMessage: `${localWarning}Published schedule was unavailable, so sample data was loaded.`,
       statusTone: "info",
+      publishedUpdateAvailable: false,
     };
   }
 }
@@ -451,6 +475,7 @@ async function handleLoadPublishedSchedule() {
     const result = await loadPublishedScheduleFile();
 
     state.startupSource = "published";
+    state.publishedUpdateAvailable = false;
     commitScheduleLoaded(result.schedule, { preserveScroll: false });
     showFileStatus("Published Schedule loaded. Local autosave was updated.", "success");
   } catch {
@@ -474,6 +499,7 @@ function renderApp(options = {}) {
   const weeklyTotals = calculateWeeklyTotals(schedule.workers, dailyTotals);
 
   syncModeControls();
+  updatePublishedUpdateNotice();
   document.body.dataset.viewMode = state.viewMode;
   weekRangeLabel.textContent = formatWeekRange(schedule.weekStartDate);
 
@@ -531,6 +557,7 @@ function commitScheduleState(nextSchedule, renderOptions = { preserveScroll: tru
 function commitScheduleLoaded(nextSchedule, renderOptions = { preserveScroll: false }) {
   schedule = nextSchedule;
   state.hasUnexportedChanges = false;
+  state.publishedUpdateAvailable = false;
   saveCurrentScheduleLocally({ dirty: false });
   renderApp(renderOptions);
 }
@@ -971,6 +998,14 @@ function syncModeControls() {
     calendarDownloadButton.hidden = !state.readOnly;
     calendarDownloadButton.disabled = !state.readOnly;
   }
+}
+
+function updatePublishedUpdateNotice() {
+  if (!publishedUpdateNotice) {
+    return;
+  }
+
+  publishedUpdateNotice.hidden = state.readOnly || !state.publishedUpdateAvailable;
 }
 
 function captureHorizontalScrollPositions() {
