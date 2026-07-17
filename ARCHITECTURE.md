@@ -9,8 +9,8 @@ index.html
    |
    v
 main.js ---- startup data sources
-   |          editor: localStorage -> published JSON -> default JSON -> sample data
-   |          viewer: published JSON -> default JSON -> sample data
+   |          editor: localStorage -> published JSON -> sample data
+   |          viewer: published JSON -> sample data
    |
    +--> immutable schedule state
    |       scheduleState.js / repeatShifts.js
@@ -33,14 +33,12 @@ Editor loading order:
 
 1. Validate and restore local browser autosave.
 2. Fetch and validate `data/published-schedule.json`.
-3. Fetch and validate `data/default-schedule.json`.
-4. Fall back to normalized in-code sample data.
+3. Fall back to normalized in-code sample data.
 
 Viewer loading order:
 
 1. Fetch and validate `data/published-schedule.json`.
-2. Fetch and validate `data/default-schedule.json`.
-3. Fall back to normalized in-code sample data.
+2. Fall back to normalized in-code sample data.
 
 Viewer mode intentionally does not read or write localStorage.
 

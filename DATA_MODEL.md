@@ -111,7 +111,7 @@ Dates identify the shift's starting calendar day. If `endTime <= startTime`, the
 
 ## Static Schedule Files
 
-- `data/published-schedule.json`: first source for viewers and first static fallback for editors.
-- `data/default-schedule.json`: fallback/sample file.
+- `data/published-schedule.json`: canonical source for viewers and static fallback for editors.
+- `data/default-schedule.json`: retained compatibility/archive artifact and not part of normal runtime loading.
 
-Both use the same validated envelope as imports and exports. Viewer mode ignores localStorage; editor mode prefers a valid local autosave.
+The retained archive uses the same validated envelope as imports and exports. Viewer mode ignores localStorage; editor mode prefers a valid local autosave, then the published file.

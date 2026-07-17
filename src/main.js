@@ -55,7 +55,6 @@ import {
 import { openWorkerManager } from "./workerManager.js";
 
 const PUBLISHED_SCHEDULE_URL = "./data/published-schedule.json";
-const DEFAULT_SCHEDULE_URL = "./data/default-schedule.json";
 const STATUS_AUTO_DISMISS_MS = 15000;
 const AUTO_DISMISS_STATUS_TONES = new Set(["success", "info"]);
 
@@ -153,8 +152,8 @@ async function handleSettingsAction() {
     return;
   }
 
-  if (result.action === "load-default") {
-    await handleLoadDefaultSchedule();
+  if (result.action === "load-published") {
+    await handleLoadPublishedSchedule();
   }
 }
 
@@ -328,28 +327,18 @@ async function loadViewerStartupSchedule() {
       statusTone: "success",
     });
   } catch {
-    try {
-      const defaultResult = await loadDefaultScheduleFile();
-
-      return createFileStartupResult(defaultResult, {
-        source: "default",
-        statusMessage: "Published schedule was unavailable, so the fallback schedule was loaded.",
-        statusTone: "info",
-      });
-    } catch {
-      return {
-        hasLocalAutosave: false,
-        hasUnexportedChanges: false,
-        localSaveError: "",
-        localSavedAt: "",
-        localStorageAvailable: true,
-        schedule: structuredClone(sampleSchedule),
-        shouldSaveLocalCopy: false,
-        source: "sample",
-        statusMessage: "Published and fallback schedule files were unavailable, so sample data was loaded.",
-        statusTone: "info",
-      };
-    }
+    return {
+      hasLocalAutosave: false,
+      hasUnexportedChanges: false,
+      localSaveError: "",
+      localSavedAt: "",
+      localStorageAvailable: true,
+      schedule: structuredClone(sampleSchedule),
+      shouldSaveLocalCopy: false,
+      source: "sample",
+      statusMessage: "Published schedule was unavailable, so sample data was loaded.",
+      statusTone: "info",
+    };
   }
 }
 
@@ -393,35 +382,18 @@ async function loadEditorStartupSchedule() {
       statusTone: localWarning ? "info" : "success",
     };
   } catch {
-    try {
-      const defaultResult = await loadDefaultScheduleFile();
-
-      return {
-        hasLocalAutosave: false,
-        hasUnexportedChanges: false,
-        localSaveError: localWarning.trim(),
-        localSavedAt: "",
-        localStorageAvailable: local.isAvailable !== false,
-        schedule: defaultResult.schedule,
-        shouldSaveLocalCopy: true,
-        source: "default",
-        statusMessage: `${localWarning}Published schedule was unavailable, so the fallback schedule was loaded.`,
-        statusTone: "info",
-      };
-    } catch {
-      return {
-        hasLocalAutosave: false,
-        hasUnexportedChanges: false,
-        localSaveError: localWarning.trim(),
-        localSavedAt: "",
-        localStorageAvailable: local.isAvailable !== false,
-        schedule: structuredClone(sampleSchedule),
-        shouldSaveLocalCopy: true,
-        source: "sample",
-        statusMessage: `${localWarning}Published and fallback schedule files were unavailable, so sample data was loaded.`,
-        statusTone: "info",
-      };
-    }
+    return {
+      hasLocalAutosave: false,
+      hasUnexportedChanges: false,
+      localSaveError: localWarning.trim(),
+      localSavedAt: "",
+      localStorageAvailable: local.isAvailable !== false,
+      schedule: structuredClone(sampleSchedule),
+      shouldSaveLocalCopy: true,
+      source: "sample",
+      statusMessage: `${localWarning}Published schedule was unavailable, so sample data was loaded.`,
+      statusTone: "info",
+    };
   }
 }
 
@@ -446,11 +418,6 @@ async function loadPublishedScheduleFile() {
   return loadScheduleFile(PUBLISHED_SCHEDULE_URL, "Published schedule file");
 }
 
-// Fallback/sample deployment data kept separate from the published schedule.
-async function loadDefaultScheduleFile() {
-  return loadScheduleFile(DEFAULT_SCHEDULE_URL, "Default schedule file");
-}
-
 async function loadScheduleFile(url, label) {
   const response = await fetch(url, { cache: "no-store" });
 
@@ -467,13 +434,13 @@ async function loadScheduleFile(url, label) {
   return result;
 }
 
-async function handleLoadDefaultSchedule() {
+async function handleLoadPublishedSchedule() {
   if (state.readOnly) {
     return;
   }
 
   const confirmed = globalThis.confirm(
-    "Load the default schedule? This will replace the current in-memory schedule and local autosave.",
+    "Load the published schedule? This will replace the current in-memory schedule and local autosave.",
   );
 
   if (!confirmed) {
@@ -481,13 +448,13 @@ async function handleLoadDefaultSchedule() {
   }
 
   try {
-    const result = await loadDefaultScheduleFile();
+    const result = await loadPublishedScheduleFile();
 
-    state.startupSource = "default";
+    state.startupSource = "published";
     commitScheduleLoaded(result.schedule, { preserveScroll: false });
-    showFileStatus("Default schedule loaded. Local autosave was updated.", "success");
+    showFileStatus("Published Schedule loaded. Local autosave was updated.", "success");
   } catch {
-    showFileStatus("Default schedule could not be loaded. Check data/default-schedule.json.", "error");
+    showFileStatus("Published Schedule could not be loaded. Check data/published-schedule.json.", "error");
   }
 }
 
@@ -644,10 +611,6 @@ function updatePersistenceStatus() {
 function getStartupSourceLabel() {
   if (state.startupSource === "local") {
     return "local autosave";
-  }
-
-  if (state.startupSource === "default") {
-    return "the fallback schedule";
   }
 
   if (state.startupSource === "published") {

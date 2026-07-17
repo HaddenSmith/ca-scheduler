@@ -7,7 +7,7 @@ Use this checklist before moving toward backend, Box, or server work.
 - Load edit mode at `/` and confirm there are no console errors.
 - Load viewer mode at `/index.html?mode=view` and confirm editing controls are hidden.
 - Load `viewer.html` and confirm it opens viewer mode.
-- Confirm GitHub Pages/static paths work with relative `index.html`, `viewer.html`, `src/...`, `data/published-schedule.json`, and `data/default-schedule.json`.
+- Confirm GitHub Pages/static paths work with relative `index.html`, `viewer.html`, `src/...`, and `data/published-schedule.json`.
 - Switch between Detailed Day View and Compact Week View.
 - Use Previous Week, Next Week, and Today.
 - In Detailed Day View, click Today and confirm the page scrolls to today's day section.
@@ -18,7 +18,7 @@ Use this checklist before moving toward backend, Box, or server work.
 - Open Settings, change a harmless setting, save, and confirm the schedule re-renders.
 - Confirm the main toolbar only shows Previous Week, Today, date jump, Next Week, Detailed Day View, Compact Week View, and Settings.
 - Confirm the toolbar remains compact on desktop and stacks cleanly on narrow screens.
-- Confirm Manage Workers, Import JSON, Export JSON, Clear Local Autosave, and Load Default Schedule are available from Settings instead of the main toolbar.
+- Confirm Manage Workers, Import JSON, Export JSON, Clear Local Autosave, and Load Published Schedule are available from Settings instead of the main toolbar.
 - Confirm Check Out and Checkout/Project have separate color settings.
 - Change the Check Out color and confirm Checkout/Project does not change.
 - Change the Checkout/Project color and confirm Check Out does not change.
@@ -38,8 +38,8 @@ Use this checklist before moving toward backend, Box, or server work.
 - Open the app in edit mode with a valid local autosave and confirm the local copy takes precedence over static schedule files.
 - Open the app in edit mode with empty localStorage and confirm `data/published-schedule.json` loads first.
 - Open Viewer Mode with local autosave present and confirm the viewer ignores it and loads `data/published-schedule.json`.
-- Temporarily make `data/published-schedule.json` unavailable or invalid and confirm Viewer Mode falls back to `data/default-schedule.json` with a subtle status message.
-- Temporarily make both static files unavailable or invalid and confirm sample data loads without a startup crash.
+- Temporarily make `data/published-schedule.json` unavailable or invalid and confirm Viewer Mode falls back to sample data with a subtle status message.
+- Temporarily make `data/published-schedule.json` unavailable or invalid and confirm editor mode falls back to sample data without a startup crash.
 - Confirm the published schedule has 12 workers and realistic multi-week schedule data.
 - Confirm the published schedule uses clean labels such as Check In, Check Out, Desk, Projects, Staff Meeting, Class, OFF, On Call, Backup On Call, and roving subtype labels.
 - Make a small edit and confirm the local save status updates.
@@ -50,7 +50,7 @@ Use this checklist before moving toward backend, Box, or server work.
 - Try refreshing/closing after an unexported edit and confirm the browser warns before leaving.
 - Use Clear Local Autosave from Settings -> Data / Backup, confirm the warning prompt appears, and confirm the current open schedule stays visible.
 - Refresh after clearing local autosave and confirm the default schedule loads again.
-- Use Load Default Schedule from Settings -> Data / Backup, confirm the warning prompt appears, and confirm current in-memory/local schedule is replaced.
+- Use Load Published Schedule from Settings -> Data / Backup, confirm the warning prompt appears, and confirm current in-memory/local schedule is replaced.
 - Confirm clearing editor localStorage returns edit mode to the published schedule on refresh.
 
 ## Viewer Calendar Download

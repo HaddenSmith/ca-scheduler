@@ -210,7 +210,7 @@ function createSettingsElements() {
             <button type="button" class="secondary-button" data-settings-action="import-json">Import JSON</button>
             <button type="button" class="secondary-button" data-settings-action="export-json">Export JSON</button>
             <button type="button" class="secondary-button" data-settings-action="clear-autosave">Clear Local Autosave</button>
-            <button type="button" class="danger-button subtle-danger-button" data-settings-action="load-default">Load Default Schedule</button>
+            <button type="button" class="danger-button subtle-danger-button" data-settings-action="load-published">Load Published Schedule</button>
           </div>
         </fieldset>
 
@@ -243,7 +243,7 @@ function createSettingsElements() {
     button.addEventListener("click", () => closeSettings({ action: "cancel", settings: null }));
   }
 
-  for (const action of ["manage-workers", "import-json", "export-json", "clear-autosave", "load-default"]) {
+  for (const action of ["manage-workers", "import-json", "export-json", "clear-autosave", "load-published"]) {
     backdrop.querySelector(`[data-settings-action="${action}"]`).addEventListener("click", () => {
       closeSettings({ action, settings: null });
     });

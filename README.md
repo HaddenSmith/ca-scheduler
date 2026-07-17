@@ -37,8 +37,8 @@ This project was designed and directed by Hadden Smith for the BYU Helaman Halls
 - Non-blocking warnings for overlap, phone coverage overlap, missing dedicated Night Phone Coverage, long consecutive work, late-night into early-morning, weekly max hours, daily max hours, and desk coverage gaps.
 - JSON export/import for restoring the full local schedule state, available from Settings -> Data / Backup.
 - Single-computer localStorage autosave in edit mode.
-- Clear Local Autosave and Load Default Schedule controls in Settings -> Data / Backup.
-- Static published schedule loading from `data/published-schedule.json`, with `data/default-schedule.json` as fallback.
+- Clear Local Autosave and Load Published Schedule controls in Settings -> Data / Backup.
+- Static published schedule loading from `data/published-schedule.json`.
 - Viewer mode with `index.html?mode=view` or `viewer.html`.
 - Optional warning display in Viewer Mode, controlled from edit-mode Settings.
 - Viewer-only worker calendar download as a one-time `.ics` snapshot.
@@ -73,15 +73,15 @@ The JSON file represents the whole schedule, not only the visible week.
 
 ## Local Autosave
 
-Edit mode autosaves the current schedule to this browser's `localStorage`. On the same computer and browser, reopening the app should restore the local autosave before loading the default schedule.
+Edit mode autosaves the current schedule to this browser's `localStorage`. On the same computer and browser, reopening the app should restore the local autosave before loading the published schedule.
 
 Local autosave is not a shared backup. It does not sync across computers, browsers, GitHub Pages, Box, or coworkers. Export JSON whenever you need to back up, share, or move the schedule.
 
-Use **Settings -> Data / Backup -> Clear Local Autosave** to remove the saved browser copy. Use **Settings -> Data / Backup -> Load Default Schedule** to replace the current open schedule with `data/default-schedule.json`.
+Use **Settings -> Data / Backup -> Clear Local Autosave** to remove the saved browser copy. Use **Settings -> Data / Backup -> Load Published Schedule** to replace the current open schedule with `data/published-schedule.json`.
 
 If the app says "Unsaved changes - open Settings -> Data / Backup -> Export JSON," local autosave may already have saved the browser copy, but the schedule has not been exported as a portable file since the last edit.
 
-## Published and Fallback Schedules
+## Published Schedule
 
 The static schedule shown to workers lives at:
 
@@ -89,15 +89,9 @@ The static schedule shown to workers lives at:
 data/published-schedule.json
 ```
 
-For the current static workflow, a manager/editor exports schedule JSON and Hadden manually replaces `data/published-schedule.json` in GitHub. Viewer Mode always tries this file first and does not read local autosave.
+For the current static workflow, a manager/editor exports schedule JSON and Hadden manually replaces `data/published-schedule.json` in GitHub. Viewer Mode loads this file directly and does not read local autosave. Edit mode tries local autosave first, then this published file, then `src/sampleData.js` if the published file is unavailable.
 
-The fallback file lives at:
-
-```text
-data/default-schedule.json
-```
-
-In edit mode, the app tries local autosave first. If there is no valid local autosave, it tries the published schedule, then the fallback schedule, then `src/sampleData.js`. In Viewer Mode, it tries the published schedule, then the fallback schedule, then sample data.
+The older `data/default-schedule.json` file is retained as a tracked compatibility/archive artifact, but the application no longer loads it during normal startup or through Settings.
 
 The static schedule files may contain real worker names or shift details. Do not publish them on GitHub Pages unless your workplace has approved sharing that information.
 
@@ -134,17 +128,15 @@ This app is static and should work on GitHub Pages as long as the repository pub
 - `viewer.html`
 - `src/...`
 - `data/published-schedule.json`
-- `data/default-schedule.json`
 
-To publish a schedule today, export JSON from Settings -> Data / Backup and replace `data/published-schedule.json` in GitHub. Workers should use `viewer.html` or `index.html?mode=view`. To continue editing on the same computer/browser, local autosave should restore the editor copy. To start fresh, clear local autosave or load the default schedule from Settings -> Data / Backup.
+To publish a schedule today, export JSON from Settings -> Data / Backup and replace `data/published-schedule.json` in GitHub. Workers should use `viewer.html` or `index.html?mode=view`. To continue editing on the same computer/browser, local autosave should restore the editor copy. To start fresh, clear local autosave or use Load Published Schedule from Settings -> Data / Backup.
 
 ## File Map
 
 - `index.html`: App shell.
 - `viewer.html`: Lightweight viewer entry point.
 - `data/published-schedule.json`: Static schedule shown in Viewer Mode.
-- `data/default-schedule.json`: Static fallback/sample schedule used when the published file is unavailable.
-- `data/README.md`: Notes about default schedule data.
+- `data/README.md`: Notes about the published schedule and retained compatibility data.
 - `src/main.js`: App startup, state wiring, render flow, import/export, and top-level handlers.
 - `src/localStorageAutosave.js`: Single-browser local autosave helpers.
 - `src/model.js`: Data shapes, settings, shift presets, and color defaults.
@@ -178,6 +170,10 @@ To publish a schedule today, export JSON from Settings -> Data / Backup and repl
 - No cross-computer sync. Local autosave stays in one browser on one computer.
 - No Excel or PDF export yet.
 - Calendar downloads are static snapshots and do not update automatically.
+
+## Future Ideas
+
+- Optional shift templates/default times (CSA, RB, RJ, etc.) that auto-fill common shift times while remaining editable.
 
 ## Future Work
 

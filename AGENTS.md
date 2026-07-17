@@ -16,7 +16,7 @@ This repository is a static, vanilla JavaScript Conference Assistant scheduler. 
 - `src/jsonHelpers.js`, `src/localStorageAutosave.js`: validated file and browser persistence.
 - `src/icsExport.js`: viewer-only calendar snapshot generation.
 - `data/published-schedule.json`: schedule viewers see first.
-- `data/default-schedule.json`: fallback schedule.
+- `data/default-schedule.json`: retained compatibility/archive artifact; not loaded by the application.
 - `test/`: Node built-in unit tests for pure business logic.
 
 ## Run Locally
@@ -41,8 +41,8 @@ The suite has no runtime dependencies. `npm test` is also available when npm is 
 
 - Keep asset and data paths relative for GitHub Pages project paths.
 - Do not introduce server assumptions, secrets, absolute Windows paths, or root-relative URLs.
-- Viewer mode must ignore localStorage and load `data/published-schedule.json`, then `data/default-schedule.json`, then sample data.
-- Editor mode loads valid localStorage first, then published data, default data, and sample data.
+- Viewer mode must ignore localStorage and load `data/published-schedule.json`, then sample data.
+- Editor mode loads valid localStorage first, then published data, and sample data only if the published file is unavailable.
 - `published-schedule.json` is manually replaced after an editor exports JSON. It may contain sensitive names and schedule details; obtain approval before public publishing.
 
 ## Data Rules
