@@ -62,7 +62,7 @@ or open:
 viewer.html
 ```
 
-Use the download icon in Viewer Mode to choose one worker and one week, then download an `.ics` file for Google Calendar, Apple Calendar, Outlook, or another calendar app. Counted work, Staff Meeting, On Call, and Backup On Call shifts are included with notes and phone-coverage details. Class, OFF, and Desk Coverage are always excluded. An optional checkbox adds deduplicated 11:30 PM phone-duty reminders when the worker has an explicit assignment. This is a one-time snapshot, not a subscribed calendar. When the published schedule changes, download and import a new file.
+Use the download icon in Viewer Mode to choose one worker and one week, then download an `.ics` file for Google Calendar, Apple Calendar, Outlook, or another calendar app. Counted work, Staff Meeting, On Call, and Backup On Call shifts are included with notes and phone-coverage details. Class, OFF, and Desk Coverage are always excluded. When a worker has an authoritative nightly assignment, the final exported shift for that night is titled with an `OC /` or `BOC /` prefix. This is a one-time snapshot, not a subscribed calendar. When the published schedule changes, download and import a new file.
 
 ## JSON Import and Export
 
@@ -177,6 +177,7 @@ To publish a schedule today, export JSON from Settings -> Data / Backup and repl
 ## Future Ideas
 
 - Optional shift templates/default times (CSA, RB, RJ, etc.) that auto-fill common shift times while remaining editable.
+- Configurable Sunday church time windows, optional warnings, and scheduling rules for repeated missed church attendance.
 
 ## Future Work
 

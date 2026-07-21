@@ -5,6 +5,7 @@ import { SHIFT_TYPE_PRESETS } from "./model.js";
 import { renderDayTotals } from "./renderTotals.js";
 import { formatRoveSubtypesLabel, hasCustomShiftNotes, isRovingAutoLabel } from "./rovingUtils.js";
 import { getOnCallAssignment } from "./scheduleState.js";
+import { getShiftLabelWithPhoneCoverage } from "./shiftLabels.js";
 import {
   buildTimeTicks,
   getScheduleBoundaryMinutes,
@@ -431,10 +432,11 @@ function renderShiftBlock(layoutShift, settings, layout, callbacks, workerCount)
   node.style.width = `calc(${layoutShift.widthPercent}% - 4px)`;
   const displayLabel = getDisplayShiftLabel(shift, layout, workerCount, layoutShift);
 
-  node.title = `${shift.label || shift.name}: ${formatTimeForDisplay(shift.startTime)} - ${formatTimeForDisplay(shift.endTime)}. ${callbacks.readOnly ? "Click for details." : "Click to edit."}`;
+  const fullLabel = getShiftLabelWithPhoneCoverage(shift);
+  node.title = `${fullLabel}: ${formatTimeForDisplay(shift.startTime)} - ${formatTimeForDisplay(shift.endTime)}. ${callbacks.readOnly ? "Click for details." : "Click to edit."}`;
   node.setAttribute(
     "aria-label",
-    `${shift.name}, ${formatTimeForDisplay(shift.startTime)} to ${formatTimeForDisplay(shift.endTime)}. ${callbacks.readOnly ? "Click for details." : "Click to edit."}`,
+    `${fullLabel}, ${formatTimeForDisplay(shift.startTime)} to ${formatTimeForDisplay(shift.endTime)}. ${callbacks.readOnly ? "Click for details." : "Click to edit."}`,
   );
   node.querySelector(".shift-label").textContent = displayLabel;
 
@@ -442,16 +444,6 @@ function renderShiftBlock(layoutShift, settings, layout, callbacks, workerCount)
     node.querySelector(".shift-time").textContent = `${formatTimeForDisplay(shift.startTime)}-${formatTimeForDisplay(shift.endTime)}`;
   } else {
     node.querySelector(".shift-time").remove();
-  }
-
-  if (shift.alsoOnCall || shift.alsoBackupOnCall) {
-    const flags = document.createElement("span");
-    flags.className = "shift-flags";
-    flags.textContent = [
-      shift.alsoOnCall ? "OC" : "",
-      shift.alsoBackupOnCall ? "BOC" : "",
-    ].filter(Boolean).join(" / ");
-    node.append(flags);
   }
 
   if (hasCustomShiftNotes(shift)) {
@@ -505,14 +497,18 @@ function getDisplayShiftLabel(shift, layout, workerCount, layoutShift) {
     layoutShift.widthPercent < 70;
 
   if (!isCramped || isCustomLabel(shift, label)) {
-    return label;
+    return getShiftLabelWithPhoneCoverage(shift, { baseLabel: label });
   }
+
+  let compactLabel = label;
 
   if (shift.shiftType === "Roving") {
-    return formatRoveSubtypesLabel(shift.roveSubtypes) || label;
+    compactLabel = formatRoveSubtypesLabel(shift.roveSubtypes) || label;
+  } else {
+    compactLabel = CRAMPED_LABELS[shift.shiftType] ?? label;
   }
 
-  return CRAMPED_LABELS[shift.shiftType] ?? label;
+  return getShiftLabelWithPhoneCoverage(shift, { baseLabel: compactLabel });
 }
 
 function isCustomLabel(shift, label) {

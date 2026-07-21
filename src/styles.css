@@ -835,15 +835,6 @@ textarea {
     var(--shift-color);
 }
 
-.shift-flags {
-  overflow: hidden;
-  font-size: 0.54rem;
-  font-weight: 900;
-  line-height: 1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .shift-note-marker {
   position: absolute;
   top: 2px;
@@ -1136,10 +1127,6 @@ textarea {
 .schedule-board.is-compact .shift-label {
   font-size: 0.5rem;
   line-height: 1;
-}
-
-.schedule-board.is-compact .shift-flags {
-  font-size: 0.44rem;
 }
 
 .schedule-board.is-compact .draft-shift-preview {

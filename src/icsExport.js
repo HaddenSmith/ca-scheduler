@@ -5,12 +5,11 @@ import {
   getWeekStartDate,
 } from "./dateUtils.js";
 import { timeToMinutes } from "./timeUtils.js";
+import { getShiftLabelWithPhoneCoverage } from "./shiftLabels.js";
 
 const CALENDAR_TIME_ZONE = "America/Denver";
 const EXCLUDED_SHIFT_TYPES = new Set(["Class", "OFF", "Desk Coverage"]);
 const PHONE_COVERAGE_TYPES = new Set(["On Call", "Backup On Call"]);
-const REMINDER_START_TIME = "23:30";
-const REMINDER_END_TIME = "23:45";
 
 let dialogElements;
 let activeSchedule;
@@ -50,9 +49,7 @@ export function buildWorkerCalendar(schedule, options) {
       weekDates.has(shift.date) &&
       isShiftIncludedInCalendar(shift);
   });
-  const reminders = options.includeNightlyReminder === false
-    ? []
-    : getNightlyPhoneReminders(schedule, worker.id, weekDates);
+  const finalShiftIdsByDate = getFinalExportedShiftIdsByDate(shifts);
   const stamp = formatUtcTimestamp(options.now ?? new Date());
   const calendarLines = [
     "BEGIN:VCALENDAR",
@@ -66,20 +63,18 @@ export function buildWorkerCalendar(schedule, options) {
   ];
 
   for (const shift of shifts) {
-    calendarLines.push(...buildEventLines(shift, worker, stamp));
-  }
-
-  for (const reminder of reminders) {
-    calendarLines.push(...buildReminderEventLines(reminder, worker, stamp));
+    const nightlyRoles = finalShiftIdsByDate.get(shift.date) === shift.id
+      ? getNightlyRoles(schedule, worker.id, shift.date)
+      : [];
+    calendarLines.push(...buildEventLines(shift, worker, stamp, nightlyRoles));
   }
 
   calendarLines.push("END:VCALENDAR");
 
   return {
     content: `${calendarLines.map(foldIcsLine).join("\r\n")}\r\n`,
-    eventCount: shifts.length + reminders.length,
+    eventCount: shifts.length,
     fileName: `ca-work-schedule-${slugify(worker.name)}-${weekStartDate}.ics`,
-    reminderEventCount: reminders.length,
     weekStartDate,
     workEventCount: shifts.length,
   };
@@ -132,11 +127,6 @@ function createDialogElements() {
           <input name="weekDate" type="date" required />
         </label>
         <p class="field-help ics-week-range"></p>
-
-        <label class="checkbox-row">
-          <input name="includeNightlyReminder" type="checkbox" />
-          <span>Include an 11:30 PM On Call/Backup On Call reminder, if applicable</span>
-        </label>
 
         <p class="ics-snapshot-note">
           This downloads a snapshot .ics file. Import it into Google Calendar, Apple Calendar, Outlook, or another calendar app. It will not auto-update if the schedule changes later.
@@ -193,7 +183,6 @@ function populateDialog() {
   }
 
   dialogElements.weekDate.value = activeSchedule.weekStartDate;
-  dialogElements.form.elements.includeNightlyReminder.checked = true;
   updateWeekRange();
 }
 
@@ -204,7 +193,6 @@ function handleSubmit(event) {
     const calendar = downloadWorkerCalendar(activeSchedule, {
       workerId: dialogElements.worker.value,
       weekDate: dialogElements.weekDate.value,
-      includeNightlyReminder: dialogElements.form.elements.includeNightlyReminder.checked,
     });
 
     closeDialog({
@@ -242,15 +230,14 @@ function closeDialog(result) {
   resolve?.(result);
 }
 
-function buildEventLines(shift, worker, stamp) {
+function buildEventLines(shift, worker, stamp, nightlyRoles = []) {
   const endDate = timeToMinutes(shift.endTime) <= timeToMinutes(shift.startTime)
     ? addDays(shift.date, 1)
     : shift.date;
   const phoneCoverage = getPhoneCoverageLabels(shift);
-  const summarySuffix = phoneCoverage.length && !["On Call", "Backup On Call"].includes(shift.shiftType)
-    ? ` (${phoneCoverage.join(" + ")})`
-    : "";
-  const summary = `${shift.label || shift.shiftType || "Shift"}${summarySuffix}`;
+  const summary = getShiftLabelWithPhoneCoverage(shift, {
+    additionalRoles: nightlyRoles,
+  });
   const descriptionParts = [];
 
   descriptionParts.push(`Worker: ${worker.name}`);
@@ -300,54 +287,44 @@ export function isShiftIncludedInCalendar(shift) {
     PHONE_COVERAGE_TYPES.has(shiftType);
 }
 
-export function getNightlyPhoneReminders(schedule, workerId, weekDates) {
-  const reminders = new Map();
+function getFinalExportedShiftIdsByDate(shifts) {
+  const finalShifts = new Map();
 
-  // Nightly reminders must come from the dedicated nightly assignment row.
-  // Daytime phone flags and standalone phone shifts are separate concepts.
-  for (const assignment of schedule.onCallAssignments ?? []) {
-    if (!weekDates.has(assignment.date)) {
-      continue;
-    }
+  for (const shift of shifts) {
+    const current = finalShifts.get(shift.date);
 
-    if (assignment.primaryWorkerId === workerId) {
-      addNightlyReminder(reminders, assignment.date, "primary");
-    }
-
-    if (assignment.backupWorkerId === workerId) {
-      addNightlyReminder(reminders, assignment.date, "backup");
+    if (!current || getShiftEndSortMinutes(shift) > getShiftEndSortMinutes(current)) {
+      finalShifts.set(shift.date, shift);
     }
   }
 
-  return [...reminders.values()].sort((left, right) => {
-    return left.date.localeCompare(right.date) || left.role.localeCompare(right.role);
-  });
+  return new Map([...finalShifts].map(([date, shift]) => [date, shift.id]));
 }
 
-function addNightlyReminder(reminders, date, role) {
-  const key = `${date}:${role}`;
+function getShiftEndSortMinutes(shift) {
+  const start = timeToMinutes(shift.startTime);
+  let end = timeToMinutes(shift.endTime);
 
-  if (!reminders.has(key)) {
-    reminders.set(key, { date, role });
+  if (end <= start) {
+    end += 24 * 60;
   }
+
+  return end;
 }
 
-function buildReminderEventLines(reminder, worker, stamp) {
-  const isBackup = reminder.role === "backup";
-  const title = isBackup ? "Backup On Call Tonight" : "On Call Tonight";
-  const role = isBackup ? "Backup On Call" : "On Call";
+function getNightlyRoles(schedule, workerId, date) {
+  const assignment = (schedule.onCallAssignments ?? []).find((item) => item.date === date);
+  const roles = [];
 
-  return [
-    "BEGIN:VEVENT",
-    `UID:${escapeIcsText(`phone-reminder-${reminder.role}-${worker.id}-${reminder.date}@conference-assistant-scheduler`)}`,
-    `DTSTAMP:${stamp}`,
-    `DTSTART;TZID=${CALENDAR_TIME_ZONE}:${formatLocalDateTime(reminder.date, REMINDER_START_TIME)}`,
-    `DTEND;TZID=${CALENDAR_TIME_ZONE}:${formatLocalDateTime(reminder.date, REMINDER_END_TIME)}`,
-    `SUMMARY:${escapeIcsText(title)}`,
-    `DESCRIPTION:${escapeIcsText(`${worker.name} is assigned ${role} tonight.`)}`,
-    "TRANSP:TRANSPARENT",
-    "END:VEVENT",
-  ];
+  if (assignment?.primaryWorkerId === workerId) {
+    roles.push("primary");
+  }
+
+  if (assignment?.backupWorkerId === workerId) {
+    roles.push("backup");
+  }
+
+  return roles;
 }
 
 function getPhoneCoverageLabels(shift) {

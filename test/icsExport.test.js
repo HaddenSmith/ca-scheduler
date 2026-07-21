@@ -16,7 +16,6 @@ function build(schedule, options = {}) {
   return buildWorkerCalendar(schedule, {
     workerId: "worker-1",
     weekDate: "2026-07-11",
-    includeNightlyReminder: false,
     now: FIXED_NOW,
     ...options,
   });
@@ -66,7 +65,7 @@ test("includes notes and additional phone coverage in summary and description", 
   });
   const result = build(schedule);
 
-  assert.match(result.content, /SUMMARY:Desk \(On Call \+ Backup On Call\)/);
+  assert.match(result.content, /SUMMARY:OC \/ BOC \/ Desk/);
   const unfolded = unfoldIcs(result.content);
 
   assert.match(unfolded, /Phone coverage: On Call and Backup On Call/);
@@ -115,70 +114,46 @@ test("keeps a shift UID stable when the shift date changes", () => {
   assert.equal(first, moved);
 });
 
-test("nightly reminders use dedicated assignments and deduplicate by date and role", () => {
+test("prefixes the final exported shift for an overnight primary assignment", () => {
   const schedule = makeSchedule({
     shifts: [
-      makeShift({ shiftType: "On Call", countsTowardHours: false, alsoOnCall: true }),
-      makeShift({ id: "shift-2", startTime: "20:00", endTime: "21:00", alsoOnCall: true }),
-      makeShift({ id: "shift-3", startTime: "21:00", endTime: "22:00", alsoBackupOnCall: true }),
+      makeShift({ id: "early", label: "Projects", startTime: "09:00", endTime: "10:00" }),
+      makeShift({ id: "final", label: "CSA", startTime: "22:00", endTime: "23:00" }),
     ],
     onCallAssignments: [{
       date: "2026-07-11",
       primaryWorkerId: "worker-1",
-      backupWorkerId: "worker-1",
-      notes: "",
+      backupWorkerId: "",
     }],
   });
-  const result = build(schedule, { includeNightlyReminder: true });
+  const result = build(schedule);
 
-  assert.equal(result.reminderEventCount, 2);
-  assert.equal((result.content.match(/SUMMARY:On Call Tonight/g) ?? []).length, 1);
-  assert.equal((result.content.match(/SUMMARY:Backup On Call Tonight/g) ?? []).length, 1);
-  assert.equal((result.content.match(/TRANSP:TRANSPARENT/g) ?? []).length, 2);
-  assert.match(result.content, /DTSTART;TZID=America\/Denver:20260711T233000/);
-  assert.match(result.content, /DTEND;TZID=America\/Denver:20260711T234500/);
+  assert.match(result.content, /SUMMARY:Projects/);
+  assert.match(result.content, /SUMMARY:OC \/ CSA/);
+  assert.doesNotMatch(result.content, /TRANSP:TRANSPARENT/);
 });
 
-test("generates reminders only for the selected worker's exact nightly assignments", () => {
+test("prefixes the final exported shift for an overnight backup assignment", () => {
   const schedule = makeSchedule({
-    workers: [makeWorker(), makeWorker("worker-2", "Bailey")],
+    shifts: [makeShift({ label: "Desk", startTime: "08:00", endTime: "09:00" })],
     onCallAssignments: [
-      { date: "2026-07-13", primaryWorkerId: "worker-1", backupWorkerId: "" },
-      { date: "2026-07-14", primaryWorkerId: "", backupWorkerId: "worker-1" },
-      { date: "2026-07-15", primaryWorkerId: "worker-2", backupWorkerId: "worker-2" },
-      { date: "2026-07-16", primaryWorkerId: "worker-1", backupWorkerId: "" },
+      { date: "2026-07-11", primaryWorkerId: "", backupWorkerId: "worker-1" },
     ],
   });
-  const result = build(schedule, { includeNightlyReminder: true });
+  const result = build(schedule);
 
-  assert.equal(result.reminderEventCount, 3);
-  assert.equal((result.content.match(/SUMMARY:On Call Tonight/g) ?? []).length, 2);
-  assert.equal((result.content.match(/SUMMARY:Backup On Call Tonight/g) ?? []).length, 1);
-  assert.doesNotMatch(result.content, /20260715T233000/);
+  assert.match(result.content, /SUMMARY:BOC \/ Desk/);
+  assert.doesNotMatch(result.content, /TRANSP:TRANSPARENT/);
 });
 
-test("does not generate reminders when the worker has no nightly assignments", () => {
+test("does not prefix or add an event when no exported shift exists for the assigned night", () => {
   const result = build(makeSchedule({
-    shifts: [makeShift({ shiftType: "On Call", countsTowardHours: false, alsoOnCall: true })],
-  }), { includeNightlyReminder: true });
+    shifts: [makeShift({ date: "2026-07-12" })],
+    onCallAssignments: [{ date: "2026-07-11", primaryWorkerId: "worker-1", backupWorkerId: "" }],
+  }));
 
-  assert.equal(result.reminderEventCount, 0);
-});
-
-test("generates backup-only reminders and filters other workers", () => {
-  const schedule = makeSchedule({
-    workers: [makeWorker(), makeWorker("worker-2", "Bailey")],
-    onCallAssignments: [
-      { date: "2026-07-11", primaryWorkerId: "worker-2", backupWorkerId: "worker-1" },
-      { date: "2026-07-12", primaryWorkerId: "worker-2", backupWorkerId: "worker-2" },
-    ],
-  });
-  const result = build(schedule, { includeNightlyReminder: true });
-
-  assert.equal(result.reminderEventCount, 1);
-  assert.equal((result.content.match(/SUMMARY:Backup On Call Tonight/g) ?? []).length, 1);
-  assert.doesNotMatch(result.content, /SUMMARY:On Call Tonight/);
-  assert.doesNotMatch(result.content, /20260712T233000/);
+  assert.equal(result.eventCount, 1);
+  assert.doesNotMatch(result.content, /TRANSP:TRANSPARENT/);
 });
 
 test("matches Hadden's published July 25-31 nightly assignments exactly", () => {
@@ -189,27 +164,22 @@ test("matches Hadden's published July 25-31 nightly assignments exactly", () => 
   const result = buildWorkerCalendar(parsed.schedule, {
     workerId: "hadden",
     weekDate: "2026-07-25",
-    includeNightlyReminder: true,
     now: FIXED_NOW,
   });
-  const reminderStarts = [...result.content.matchAll(
-    /DTSTART;TZID=America\/Denver:(202607(?:2[5-9]|3[01])T233000)/g,
-  )].map((match) => match[1]);
 
-  assert.equal(result.reminderEventCount, 2);
-  assert.deepEqual(reminderStarts, ["20260727T233000", "20260731T233000"]);
-  assert.equal((result.content.match(/SUMMARY:On Call Tonight/g) ?? []).length, 2);
-  assert.equal((result.content.match(/SUMMARY:Backup On Call Tonight/g) ?? []).length, 0);
+  assert.equal(result.eventCount, result.workEventCount);
+  assert.equal((result.content.match(/SUMMARY:OC \/ CSA/g) ?? []).length, 2);
+  assert.equal((result.content.match(/SUMMARY:BOC \//g) ?? []).length, 0);
+  assert.doesNotMatch(result.content, /TRANSP:TRANSPARENT/);
 });
 
-test("does not infer reminders from a CSA roving label", () => {
+test("does not prefix a CSA roving label without an assignment", () => {
   const schedule = makeSchedule({
     shifts: [makeShift({ shiftType: "Roving", label: "CSA", roveSubtypes: ["CSA"] })],
   });
-  const result = build(schedule, { includeNightlyReminder: true });
+  const result = build(schedule);
 
-  assert.equal(result.reminderEventCount, 0);
-  assert.doesNotMatch(result.content, /On Call Tonight/);
+  assert.doesNotMatch(result.content, /SUMMARY:OC \/|SUMMARY:BOC \//);
 });
 
 test("reports zero work events for a worker with only excluded records", () => {

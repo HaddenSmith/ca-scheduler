@@ -28,6 +28,9 @@ The persisted format is a versioned JSON envelope. The current `schemaVersion` i
 `scheduleVersion` and `publishedAt` are optional publication metadata. Editor mode uses them only to
 notify a manager when a published file is newer than the local autosave. Missing metadata remains
 compatible and does not trigger a comparison.
+When JSON is exported for publication, the next version is assigned once per loaded schedule. Repeated
+exports during the same editing session reuse that version; loading a newer schedule starts the next
+revision. The transient export cache is not persisted in the JSON file.
 
 ## Worker
 
@@ -94,6 +97,10 @@ Desk Coverage has no worker and is excluded from worker hours, worker overlaps, 
 Time-based phone coverage can also be represented on shifts with `alsoOnCall` and `alsoBackupOnCall`, or by standalone On Call/Backup On Call shifts.
 
 Older schedule files may contain a `notes` field on nightly assignments. That field is deprecated: imports accept and ignore it, and normalized/autosaved/exported records omit it. This does not affect notes on normal shifts, roving shifts, or Desk Coverage.
+
+For ICS export only, authoritative nightly assignments prefix the final exported shift of the date with
+`OC /` or `BOC /`. No separate reminder event is generated. Website labels remain stored as-is; `alsoOnCall`
+and `alsoBackupOnCall` are the Boolean sources for displayed shift prefixes.
 
 ## Settings
 

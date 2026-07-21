@@ -12,15 +12,16 @@ export function serializeSchedule(schedule, options = {}) {
   return JSON.stringify(createScheduleFile(schedule, options), null, 2);
 }
 
-export function createScheduleFile(schedule, { asPublished = false } = {}) {
+export function createScheduleFile(schedule, {
+  asPublished = false,
+  scheduleVersionOverride = null,
+} = {}) {
   const now = new Date().toISOString();
   const settings = normalizeSettingsForExport(schedule.settings);
   const shifts = (schedule.shifts ?? []).map((shift) => normalizeShift(shift, settings));
   const deskCoverage = (schedule.deskCoverage ?? []).map((coverage) => normalizeDeskCoverage(coverage, settings));
   const scheduleVersion = asPublished
-    ? (Number.isFinite(Number(schedule.scheduleVersion))
-      ? Math.max(0, Number(schedule.scheduleVersion)) + 1
-      : 1)
+    ? scheduleVersionOverride ?? getNextPublishedScheduleVersion(schedule)
     : normalizeScheduleVersion(schedule.scheduleVersion);
   const publishedAt = asPublished
     ? now
@@ -50,7 +51,12 @@ export function createScheduleFile(schedule, { asPublished = false } = {}) {
 }
 
 export function downloadScheduleJson(schedule) {
-  const json = serializeSchedule(schedule, { asPublished: true });
+  const scheduleVersion = getNextPublishedScheduleVersion(schedule);
+  const json = serializeSchedule(schedule, {
+    asPublished: true,
+    scheduleVersionOverride: scheduleVersion,
+  });
+  schedule.exportedScheduleVersion = scheduleVersion;
   const blob = new Blob([json], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -63,6 +69,17 @@ export function downloadScheduleJson(schedule) {
   URL.revokeObjectURL(url);
 
   return link.download;
+}
+
+export function getNextPublishedScheduleVersion(schedule) {
+  const cachedVersion = normalizeScheduleVersion(schedule?.exportedScheduleVersion);
+
+  if (cachedVersion !== null) {
+    return cachedVersion;
+  }
+
+  const currentVersion = normalizeScheduleVersion(schedule?.scheduleVersion);
+  return currentVersion === null ? 1 : currentVersion + 1;
 }
 
 export function parseScheduleJson(jsonText) {

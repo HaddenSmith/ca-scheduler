@@ -61,7 +61,7 @@ Use this checklist before moving toward backend, Box, or server work.
 
 - Confirm the calendar download icon appears only in Viewer Mode.
 - Confirm the icon opens the Download Calendar File modal without enabling editing.
-- Confirm the modal contains only worker selection, **Week of**, the optional 11:30 PM reminder checkbox, the snapshot explanation, and Download/Cancel actions.
+- Confirm the modal contains only worker selection, **Week of**, the snapshot explanation, and Download/Cancel actions.
 - Confirm the worker list is populated from the currently loaded published schedule.
 - Add, rename, reorder, import, and remove workers in editor data, publish that data, and confirm the viewer dropdown reflects the new list and order.
 - Confirm the currently displayed week is selected by default and its calculated seven-day range is visible.
@@ -75,10 +75,10 @@ Use this checklist before moving toward backend, Box, or server work.
 - Confirm an overnight shift ends on the following calendar date in the `.ics` file.
 - Confirm notes and phone-coverage descriptions are always included.
 - Confirm normal shifts with Also On Call or Also Backup On Call include that role in the event name.
-- With the reminder checkbox enabled, confirm explicit standalone, shift-flag, and nightly assignments create the correct 11:30-11:45 PM transparent reminders.
-- Confirm repeated evidence for the same worker/night/role creates only one reminder.
-- Confirm CSA or a roving label alone does not create a reminder.
-- Disable the reminder checkbox and confirm normal events remain but reminder events are absent.
+- Confirm an authoritative primary nightly assignment prefixes only that date's final exported shift with `OC /`.
+- Confirm an authoritative backup nightly assignment prefixes only that date's final exported shift with `BOC /`.
+- Confirm no separate on-call reminder events are generated.
+- Confirm a nightly assignment with no exported shift on that date creates no additional event.
 - Choose a worker/week with only Class, OFF, or Desk Coverage and confirm no file downloads and a clear no-work-shifts message appears.
 - Inspect a generated file and confirm CRLF lines, folded long lines, unique UIDs, `DTSTAMP`, and `America/Denver` timezone data.
 - Confirm the modal explains that the calendar is a snapshot and will not auto-update.

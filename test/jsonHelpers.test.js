@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   compareScheduleVersions,
   createScheduleFile,
+  getNextPublishedScheduleVersion,
   parseScheduleJson,
   serializeSchedule,
   validateAndNormalizeScheduleFile,
@@ -54,6 +55,22 @@ test("preserves and compares published schedule version metadata", () => {
   assert.equal(compareScheduleVersions(local, parsed.schedule), 1);
   assert.equal(compareScheduleVersions(parsed.schedule, local), -1);
   assert.equal(compareScheduleVersions(local, { ...local }), 0);
+});
+
+test("increments publication version once per loaded schedule", () => {
+  const loaded = makeSchedule({ scheduleVersion: 14 });
+
+  assert.equal(getNextPublishedScheduleVersion(loaded), 15);
+  loaded.exportedScheduleVersion = getNextPublishedScheduleVersion(loaded);
+  assert.equal(loaded.exportedScheduleVersion, 15);
+  assert.equal(getNextPublishedScheduleVersion(loaded), 15);
+
+  const newerPublished = makeSchedule({ scheduleVersion: 15 });
+  assert.equal(getNextPublishedScheduleVersion(newerPublished), 16);
+  assert.equal(createScheduleFile(loaded, {
+    asPublished: true,
+    scheduleVersionOverride: loaded.exportedScheduleVersion,
+  }).scheduleVersion, 15);
 });
 
 test("older schedules without published metadata remain compatible", () => {
