@@ -24,6 +24,22 @@ export function openShiftDetails({ schedule, shift }) {
   });
 }
 
+export function openDeskCoverageDetails({ schedule, coverage }) {
+  detailsElements = detailsElements ?? createDetailsElements();
+
+  if (activeResolve) {
+    closeDetails();
+  }
+
+  populateDeskCoverageDetails(schedule, coverage);
+  detailsElements.backdrop.classList.remove("is-hidden");
+  detailsElements.closeButton.focus();
+
+  return new Promise((resolve) => {
+    activeResolve = resolve;
+  });
+}
+
 function createDetailsElements() {
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop is-hidden";
@@ -59,6 +75,7 @@ function createDetailsElements() {
     backdrop,
     body: backdrop.querySelector(".shift-details-body"),
     closeButton: backdrop.querySelector("[data-details-close]"),
+    title: backdrop.querySelector("#shift-details-title"),
   };
 }
 
@@ -88,6 +105,23 @@ function populateDetails(schedule, shift) {
     ...(phoneCoverage ? [createDetailRow("Phone Coverage", phoneCoverage)] : []),
     ...(notes ? [createDetailRow("Notes", notes)] : []),
   );
+  detailsElements.title.textContent = "Shift Details";
+}
+
+function populateDeskCoverageDetails(schedule, coverage) {
+  const dateLabel = buildWeekDates(schedule.weekStartDate).find((date) => date.isoDate === coverage.date);
+  const formattedDate = dateLabel
+    ? `${dateLabel.dayName}, ${dateLabel.displayDate}`
+    : coverage.date;
+
+  detailsElements.body.replaceChildren(
+    createDetailRow("Assigned worker(s)", "Desk Coverage rail (not assigned to workers)"),
+    createDetailRow("Date", formattedDate),
+    createDetailRow("Time", `${formatTimeForDisplay(coverage.startTime)}-${formatTimeForDisplay(coverage.endTime)}`),
+    createDetailRow("Coverage", coverage.label || "D"),
+    ...(coverage.notes?.trim() ? [createDetailRow("Notes", coverage.notes.trim())] : []),
+  );
+  detailsElements.title.textContent = "Desk Coverage Details";
 }
 
 function createDetailRow(label, value) {

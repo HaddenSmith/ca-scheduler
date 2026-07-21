@@ -126,8 +126,8 @@ Use this checklist before moving toward backend, Box, or server work.
 - Confirm custom note exclamation markers appear only for custom notes.
 - Confirm auto-generated roving notes do not show the custom note marker.
 - Confirm Viewer Mode still shows custom note markers and read-only notes details.
-- Confirm On Call and Backup On Call shift types hide the extra Also On Call / Also Backup On Call checkboxes.
-- Confirm normal working shift types still show both phone coverage checkboxes.
+- Confirm On Call and Backup On Call shift types hide the Counts toward hours control and phone coverage checkboxes.
+- Confirm normal working shift types show the On Call and Backup On Call checkboxes.
 - Confirm Checkout/Project works with click-to-create, drag-to-create, edit, delete, drag/drop, resize, repeat, Copy to Workers, autosave, JSON import/export, and viewer mode.
 
 ## Roving
@@ -136,6 +136,15 @@ Use this checklist before moving toward backend, Box, or server work.
 - Select multiple roving subtypes and confirm combined labels and notes.
 - Edit roving notes manually and confirm they are not overwritten.
 - Switch away from Roving and confirm only auto-generated roving notes are cleared.
+- Select R-B or R-J on a new shift and confirm default times are 8:00 PM-12:15 AM except Friday, which is 9:30 PM-1:30 AM.
+- Select CSA on a new shift and confirm default times are 10:30 PM-12:30 AM except Friday, which is 11:30 PM-1:30 AM.
+- Edit a new shift's times before selecting a roving subtype and confirm the user's times are preserved.
+
+## Viewer Desk Coverage
+
+- In Viewer Mode, click a Desk Coverage block and confirm it opens the read-only details presentation.
+- Confirm the Desk Coverage details show assignment status, date, time, coverage label, and notes when present.
+- Confirm no Save, Delete, or editable controls are visible.
 
 ## Warnings
 

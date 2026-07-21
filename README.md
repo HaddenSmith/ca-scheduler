@@ -14,6 +14,7 @@ This project was designed and directed by Hadden Smith for the BYU Helaman Halls
 - Compact Week View for scanning most of the week at once.
 - Week navigation with Previous Week, Today, Next Week, and date jump.
 - Today scrolls to the current date in Detailed Day View.
+- New schedules default to a visible day from 7:00 AM through 2:00 AM; existing schedules retain their saved settings.
 - Worker columns under each day, with stable worker IDs.
 - Settings panel with schedule, warning, color, worker, and data/backup sections.
 - Manage Workers controls for adding, renaming, removing, and drag-reordering workers.
@@ -25,6 +26,7 @@ This project was designed and directed by Hadden Smith for the BYU Helaman Halls
 - Copy shifts to one or more workers.
 - Create simple daily or weekly repeated shift copies.
 - Multi-select roving subtypes with generated labels and notes.
+- New R-B/R-J and CSA shifts offer editable default times, including Friday-specific overnight times.
 - Custom note markers on shift blocks.
 - Shift type presets for Check In, Check Out, Checkout/Project, Roving, Projects, Staff Meeting, Desk, Class, On Call, Backup On Call, OFF, and Other.
 - Official default colors, editable and resettable in Settings. Changing a default color updates existing default-colored blocks while preserving custom colors.

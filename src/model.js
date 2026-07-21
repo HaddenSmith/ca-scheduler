@@ -70,7 +70,7 @@
 
 export const DEFAULT_SETTINGS = {
   startTime: "07:00",
-  endTime: "01:00",
+  endTime: "02:00",
   slotMinutes: 15,
   weekStartsOn: 6,
   longShiftWarningEnabled: true,

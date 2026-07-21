@@ -44,7 +44,7 @@ import { openOnCallEditor } from "./onCallEditor.js";
 import { buildRepeatedDeskCoverageCopies, buildRepeatedShiftCopies } from "./repeatShifts.js";
 import { sampleSchedule } from "./sampleData.js";
 import { openSettingsPanel } from "./settingsPanel.js";
-import { openShiftDetails } from "./shiftDetails.js";
+import { openDeskCoverageDetails, openShiftDetails } from "./shiftDetails.js";
 import { openShiftEditor } from "./shiftEditor.js";
 import {
   findDailyMaxHourWarnings,
@@ -830,8 +830,7 @@ async function handleViewDeskCoverage(coverageId) {
     return;
   }
 
-  await openDeskCoverageEditor({
-    mode: "view",
+  await openDeskCoverageDetails({
     schedule,
     coverage,
   });

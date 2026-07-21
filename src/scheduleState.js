@@ -6,6 +6,7 @@ import {
 import {
   buildRovingNotes,
   formatRoveSubtypesLabel,
+  getRovingDefaultTimes,
   getPrimaryRoveSubtype,
   isRovingAutoLabel,
   normalizeRoveSubtype,
@@ -19,13 +20,17 @@ export function createDefaultShift(schedule, defaults = {}) {
     ? normalizeRoveSubtypes(defaults.roveSubtypes ?? defaults.roveType ?? "R-3")
     : [];
   const roveType = getPrimaryRoveSubtype(roveSubtypes);
+  const date = defaults.date ?? schedule.weekStartDate;
+  const roveDefaultTimes = shiftType === "Roving"
+    ? getRovingDefaultTimes(roveSubtypes, date)
+    : null;
 
   return normalizeShift({
     id: createShiftId(),
     workerId: defaults.workerId ?? schedule.workers[0]?.id ?? "",
-    date: defaults.date ?? schedule.weekStartDate,
-    startTime: defaults.startTime ?? (shiftType === "OFF" ? schedule.settings.startTime : "09:00"),
-    endTime: defaults.endTime ?? (shiftType === "OFF" ? schedule.settings.endTime : "10:00"),
+    date,
+    startTime: defaults.startTime ?? roveDefaultTimes?.startTime ?? (shiftType === "OFF" ? schedule.settings.startTime : "09:00"),
+    endTime: defaults.endTime ?? roveDefaultTimes?.endTime ?? (shiftType === "OFF" ? schedule.settings.endTime : "10:00"),
     shiftType,
     name: preset.name,
     roveSubtypes,
@@ -200,7 +205,7 @@ export function normalizeShift(shift, settings = {}) {
 
 export function normalizeDeskCoverage(coverage, settings = {}) {
   const startTime = coverage.startTime ?? coverage.start ?? settings.startTime ?? "07:00";
-  const endTime = coverage.endTime ?? coverage.end ?? settings.endTime ?? "01:00";
+  const endTime = coverage.endTime ?? coverage.end ?? settings.endTime ?? "02:00";
 
   return {
     id: coverage.id || createDeskCoverageId(),

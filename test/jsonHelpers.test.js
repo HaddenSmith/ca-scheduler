@@ -10,6 +10,12 @@ import {
   validateAndNormalizeScheduleFile,
 } from "../src/jsonHelpers.js";
 import { makeSchedule, makeShift, makeWorker } from "./fixtures.js";
+import { DEFAULT_SETTINGS } from "../src/model.js";
+
+test("new schedule defaults use a 2:00 AM day end", () => {
+  assert.equal(DEFAULT_SETTINGS.startTime, "07:00");
+  assert.equal(DEFAULT_SETTINGS.endTime, "02:00");
+});
 
 test("round trips the current schema including worker order and Desk Coverage", () => {
   const schedule = makeSchedule({

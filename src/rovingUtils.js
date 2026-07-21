@@ -86,6 +86,26 @@ export function formatRoveSubtypesLabel(roveSubtypes) {
   return parts.join(" + ");
 }
 
+export function getRovingDefaultTimes(roveSubtypes, date) {
+  const normalized = new Set(normalizeRoveSubtypes(roveSubtypes));
+  const dayOfWeek = new Date(`${date}T12:00:00`).getDay();
+  const isFriday = dayOfWeek === 5;
+
+  if (normalized.has("CSA")) {
+    return isFriday
+      ? { startTime: "23:30", endTime: "01:30" }
+      : { startTime: "22:30", endTime: "00:30" };
+  }
+
+  if (normalized.has("R-B") || normalized.has("R-J")) {
+    return isFriday
+      ? { startTime: "21:30", endTime: "01:30" }
+      : { startTime: "20:00", endTime: "00:15" };
+  }
+
+  return null;
+}
+
 export function isRovingAutoLabel(value) {
   const label = String(value ?? "").trim();
 

@@ -298,7 +298,7 @@ function normalizeSettings(value, warnings) {
   }
 
   if (!isClockTime(settings.endTime)) {
-    warnings.push("Invalid visible day end time was replaced with 1:00 AM.");
+    warnings.push("Invalid visible day end time was replaced with 2:00 AM.");
     settings.endTime = DEFAULT_SETTINGS.endTime;
   }
 
