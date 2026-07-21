@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "app": "conference-scheduler",
-  "exportedAt": "2026-07-21T20:24:40.382Z",
-  "lastModifiedAt": "2026-07-21T20:24:40.382Z",
+  "exportedAt": "2026-07-21T20:31:29.326Z",
+  "lastModifiedAt": "2026-07-21T20:31:29.326Z",
   "revision": 1,
-  "scheduleVersion": 2,
-  "publishedAt": "2026-07-21T20:24:40.382Z",
+  "scheduleVersion": 3,
+  "publishedAt": "2026-07-21T20:31:29.326Z",
   "data": {
     "workers": [
       {
@@ -9280,7 +9280,7 @@
         "workerId": "atticus",
         "date": "2026-07-31",
         "startTime": "16:00",
-        "endTime": "01:00",
+        "endTime": "02:00",
         "shiftType": "Class",
         "name": "Class",
         "roveSubtypes": [],
@@ -9348,7 +9348,7 @@
         "workerId": "emma-w",
         "date": "2026-07-30",
         "startTime": "14:00",
-        "endTime": "01:00",
+        "endTime": "02:00",
         "shiftType": "Class",
         "name": "Class",
         "roveSubtypes": [],
@@ -9450,7 +9450,7 @@
         "workerId": "sarah",
         "date": "2026-07-31",
         "startTime": "14:00",
-        "endTime": "01:00",
+        "endTime": "02:00",
         "shiftType": "Class",
         "name": "Class",
         "roveSubtypes": [],
