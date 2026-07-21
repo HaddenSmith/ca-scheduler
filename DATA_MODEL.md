@@ -57,6 +57,8 @@ Array order is schedule column and summary order. Renaming or reordering never c
   countsTowardHours: true,
   roveSubtype: "",       // legacy/primary compatibility value
   roveSubtypes: [],       // canonical roving selections
+  checkInBuilding: "",   // optional Check-In building name
+  checkInCode: "",       // normalized building code, for convenient display/export
   alsoOnCall: false,
   alsoBackupOnCall: false
 }
@@ -65,6 +67,12 @@ Array order is schedule column and summary order. Renaming or reordering never c
 Canonical `shiftType` values are `Check In`, `Check Out`, `Checkout/Project`, `Roving`, `Projects`, `Staff Meeting`, `Desk`, `Class`, `On Call`, `Backup On Call`, `OFF`, and `Other`.
 
 Roving values normalize to `R-1` through `R-10`, `R-B`, `R-J`, and `CSA`. Older imports containing only `roveSubtype` are migrated to `roveSubtypes`.
+
+Check-In shifts may store one building using `checkInBuilding` and its normalized `checkInCode`.
+The supported order is Cannon Center (`CANC`), Hinckley (`B`), Chipman (`C`), David John (`D`),
+Taylor (`E`), Stover (`F`), Budge (`G`), Merrill (`H`), May (`I`), and Building 9 (`J`).
+When building metadata is present and the label is still generated/default, the label is `CI-<code>`.
+Older Check-In shifts without this metadata remain valid and keep their existing labels.
 
 Default labels and colors come from settings/presets. Custom values are stored directly. UI abbreviation changes display only and does not mutate stored labels. Generated roving descriptions can be distinguished from custom manager notes.
 

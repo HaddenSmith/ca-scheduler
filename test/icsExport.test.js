@@ -8,6 +8,8 @@ import {
   isShiftIncludedInCalendar,
 } from "../src/icsExport.js";
 import { parseScheduleJson } from "../src/jsonHelpers.js";
+import { normalizeShift } from "../src/scheduleState.js";
+import { DEFAULT_SETTINGS } from "../src/model.js";
 import { makeSchedule, makeShift, makeWorker } from "./fixtures.js";
 
 const FIXED_NOW = new Date("2026-07-01T12:00:00Z");
@@ -53,6 +55,17 @@ test("uses canonical inclusion rules and excludes Class, OFF, and Desk Coverage"
   assert.equal(isShiftIncludedInCalendar(makeShift({ shiftType: "OFF", countsTowardHours: true })), false);
   assert.equal(isShiftIncludedInCalendar(makeShift({ shiftType: "Desk Coverage", countsTowardHours: true })), false);
   assert.equal(isShiftIncludedInCalendar(makeShift({ shiftType: "Other", countsTowardHours: false })), false);
+});
+
+test("exports the generated Check-In building label", () => {
+  const shift = normalizeShift(makeShift({
+    shiftType: "Check In",
+    label: "Check In",
+    checkInBuilding: "May",
+  }), DEFAULT_SETTINGS);
+  const result = build(makeSchedule({ shifts: [shift] }));
+
+  assert.match(result.content, /SUMMARY:CI-I/);
 });
 
 test("includes notes and additional phone coverage in summary and description", () => {

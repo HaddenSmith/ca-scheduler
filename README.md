@@ -26,6 +26,7 @@ This project was designed and directed by Hadden Smith for the BYU Helaman Halls
 - Copy shifts to one or more workers.
 - Create simple daily or weekly repeated shift copies.
 - Multi-select roving subtypes with generated labels and notes.
+- Check-In building assignments with structured building metadata and generated labels such as `CI-I`.
 - New R-B/R-J and CSA shifts offer editable default times, including Friday-specific overnight times.
 - Custom note markers on shift blocks.
 - Shift type presets for Check In, Check Out, Checkout/Project, Roving, Projects, Staff Meeting, Desk, Class, On Call, Backup On Call, OFF, and Other.

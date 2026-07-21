@@ -140,6 +140,16 @@ Use this checklist before moving toward backend, Box, or server work.
 - Select CSA on a new shift and confirm default times are 10:30 PM-12:30 AM except Friday, which is 11:30 PM-1:30 AM.
 - Edit a new shift's times before selecting a roving subtype and confirm the user's times are preserved.
 
+## Check-In Buildings
+
+- Select Check In and confirm the Check-In Building selector appears in the required building order.
+- Select Cannon Center, May, Budge, and Building 9 and confirm labels become `CI-CANC`, `CI-I`, `CI-G`, and `CI-J`.
+- Save and reopen a Check-In shift and confirm its building and code remain selected.
+- Change the building and confirm the generated label updates without parsing the label for storage.
+- Confirm a custom Check-In label is preserved when the building changes.
+- Import an older Check-In shift without building metadata and confirm it still loads and displays safely.
+- Confirm Viewer Mode and ICS export show the generated Check-In label.
+
 ## Viewer Desk Coverage
 
 - In Viewer Mode, click a Desk Coverage block and confirm it opens the read-only details presentation.

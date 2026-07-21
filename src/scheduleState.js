@@ -3,6 +3,7 @@ import {
   getDefaultDeskCoverageColor,
   getDefaultShiftColor,
 } from "./model.js";
+import { getCheckInLabel, normalizeCheckInBuilding, isCheckInAutoLabel } from "./checkInUtils.js";
 import {
   buildRovingNotes,
   formatRoveSubtypesLabel,
@@ -20,6 +21,9 @@ export function createDefaultShift(schedule, defaults = {}) {
     ? normalizeRoveSubtypes(defaults.roveSubtypes ?? defaults.roveType ?? "R-3")
     : [];
   const roveType = getPrimaryRoveSubtype(roveSubtypes);
+  const checkInBuilding = shiftType === "Check In"
+    ? normalizeCheckInBuilding(defaults.checkInBuilding, defaults.checkInCode)
+    : null;
   const date = defaults.date ?? schedule.weekStartDate;
   const roveDefaultTimes = shiftType === "Roving"
     ? getRovingDefaultTimes(roveSubtypes, date)
@@ -35,6 +39,8 @@ export function createDefaultShift(schedule, defaults = {}) {
     name: preset.name,
     roveSubtypes,
     roveType,
+    checkInBuilding: checkInBuilding?.name ?? "",
+    checkInCode: checkInBuilding?.code ?? "",
     label: roveType || preset.label,
     notes: "",
     color: preset.color,
@@ -179,6 +185,9 @@ export function normalizeShift(shift, settings = {}) {
   }
 
   const roveType = getPrimaryRoveSubtype(roveSubtypes);
+  const checkInBuilding = shiftType === "Check In"
+    ? normalizeCheckInBuilding(shift.checkInBuilding, shift.checkInCode)
+    : null;
   const label = getNormalizedLabel(shift, shiftType, roveSubtypes, preset);
   const notes = getNormalizedNotes(shift, shiftType, roveSubtypes);
   const isOff = shiftType === "OFF";
@@ -189,6 +198,8 @@ export function normalizeShift(shift, settings = {}) {
     shiftType,
     roveSubtypes,
     roveType,
+    checkInBuilding: checkInBuilding?.name ?? "",
+    checkInCode: checkInBuilding?.code ?? "",
     name: shiftType === "Other" ? label || preset.name : preset.name,
     label,
     notes,
@@ -472,6 +483,15 @@ function getNormalizedLabel(shift, shiftType, roveSubtypes, preset) {
     const autoLabel = formatRoveSubtypesLabel(roveSubtypes) || preset.label;
 
     return !label || isRovingAutoLabel(label) ? autoLabel : label;
+  }
+
+  if (shiftType === "Check In") {
+    const building = normalizeCheckInBuilding(shift.checkInBuilding, shift.checkInCode);
+    const label = shift.label?.trim() ?? "";
+
+    return building && (!label || isCheckInAutoLabel(label))
+      ? getCheckInLabel(building)
+      : label || preset.label || shiftType;
   }
 
   return shift.label?.trim() || preset.label || shiftType;

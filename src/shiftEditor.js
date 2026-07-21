@@ -9,6 +9,11 @@ import {
   SHIFT_TYPE_PRESETS,
 } from "./model.js";
 import {
+  CHECK_IN_BUILDINGS,
+  getCheckInLabel,
+  normalizeCheckInBuilding,
+} from "./checkInUtils.js";
+import {
   buildRovingNotes,
   formatRoveSubtypesLabel,
   getRovingDefaultTimes,
@@ -110,6 +115,11 @@ function createEditorElements() {
           <div class="rove-type-options"></div>
         </fieldset>
 
+        <label class="check-in-building-row" hidden>
+          <span>Check-In Building</span>
+          <select name="checkInBuilding"></select>
+        </label>
+
         <label>
           <span>Label</span>
           <input name="label" type="text" />
@@ -208,6 +218,7 @@ function createEditorElements() {
   const repeatPhoneWarning = backdrop.querySelector(".repeat-phone-warning");
   const repeatWeekdayRow = backdrop.querySelector(".repeat-weekday-row");
   const roveTypeOptions = backdrop.querySelector(".rove-type-options");
+  const checkInBuildingRow = backdrop.querySelector(".check-in-building-row");
   const alsoOnCallRow = backdrop.querySelector(".also-on-call-row");
   const alsoBackupOnCallRow = backdrop.querySelector(".also-backup-on-call-row");
   const countsTowardHoursRow = backdrop.querySelector(".counts-toward-hours-row");
@@ -218,6 +229,7 @@ function createEditorElements() {
 
   form.addEventListener("submit", handleSubmit);
   form.querySelector('[name="shiftType"]').addEventListener("change", handleShiftTypeChange);
+  form.querySelector('[name="checkInBuilding"]').addEventListener("change", handleCheckInBuildingChange);
   roveTypeOptions.addEventListener("change", handleRoveTypeChange);
   form.querySelector('[name="repeatFrequency"]').addEventListener("change", updateRepeatFields);
   form.querySelector('[name="workerId"]').addEventListener("change", renderCopyWorkerOptions);
@@ -270,6 +282,7 @@ function createEditorElements() {
     alsoBackupOnCallRow,
     alsoOnCallRow,
     countsTowardHoursRow,
+    checkInBuildingRow,
     backdrop,
     copyButton,
     copyPhoneWarning,
@@ -318,6 +331,10 @@ function populateForm(context) {
   );
 
   renderRoveTypeOptions();
+  fillSelect(getField("checkInBuilding"), [
+    { value: "", label: "Select a building" },
+    ...CHECK_IN_BUILDINGS.map((building) => ({ value: building.name, label: `${building.name} (${building.code})` })),
+  ]);
   fillSelect(getField("repeatFrequency"), REPEAT_OPTIONS);
   renderWeekdayOptions();
 
@@ -326,6 +343,7 @@ function populateForm(context) {
   setTimeValue("startTime", shift.startTime);
   setTimeValue("endTime", shift.endTime);
   setValue("shiftType", shift.shiftType);
+  setValue("checkInBuilding", shift.checkInBuilding);
   setSelectedRoveSubtypes(shift.roveSubtypes);
   setValue("label", shift.label);
   setValue("notes", shift.notes);
@@ -340,7 +358,7 @@ function populateForm(context) {
   getField("startTime").dataset.userEdited = context.mode === "edit" ? "true" : "false";
   getField("endTime").dataset.userEdited = context.mode === "edit" ? "true" : "false";
 
-  const expectedLabel = getAutoLabelForShiftType(shift.shiftType, shift.roveSubtypes);
+  const expectedLabel = getAutoLabelForShiftType(shift.shiftType, shift.roveSubtypes, shift.checkInBuilding);
   const labelField = getField("label");
   const notesField = getField("notes");
 
@@ -352,10 +370,13 @@ function populateForm(context) {
   editorElements.copySection.hidden = false;
   editorElements.copyButton.hidden = context.mode === "create";
   renderCopyWorkerOptions();
-  updateConditionalFields();
   if (shift.shiftType === "Roving") {
     setRovingNotesIfAuto(getSelectedRoveSubtypes());
     applyRovingDefaultTimes(getSelectedRoveSubtypes());
+  }
+  updateConditionalFields();
+  if (shift.shiftType === "Check In") {
+    setAutoLabel(getAutoLabelForShiftType("Check In", [], shift.checkInBuilding));
   }
   updateRepeatFields();
   updatePhoneWarnings();
@@ -412,14 +433,21 @@ function handleShiftTypeChange() {
     setAutoLabel(formatRoveSubtypesLabel(roveSubtypes));
     setRovingNotesIfAuto(roveSubtypes);
     applyRovingDefaultTimes(roveSubtypes);
+  } else if (shiftType === "Check In") {
+    setAutoLabel(getAutoLabelForShiftType("Check In", [], getField("checkInBuilding").value));
   } else {
     setSelectedRoveSubtypes([]);
+    setValue("checkInBuilding", "");
     setAutoLabel(getAutoLabelForShiftType(shiftType));
     clearRovingNotesIfAuto();
   }
 
   updateConditionalFields();
   updatePhoneWarnings();
+}
+
+function handleCheckInBuildingChange() {
+  setAutoLabel(getAutoLabelForShiftType("Check In", [], getField("checkInBuilding").value));
 }
 
 function handleRoveTypeChange() {
@@ -483,7 +511,15 @@ function readShiftFromForm() {
   const endResult = normalizeScheduleTimeInput(getField("endTime").value, activeContext.schedule.settings);
   const roveSubtypes = shiftType === "Roving" ? getSelectedRoveSubtypes() : [];
   const roveType = getPrimaryRoveSubtype(roveSubtypes);
-  const label = getField("label").value.trim() || formatRoveSubtypesLabel(roveSubtypes) || preset.label || shiftType;
+  const checkInBuilding = shiftType === "Check In"
+    ? normalizeCheckInBuilding(getField("checkInBuilding").value)
+    : null;
+  const checkInLabel = checkInBuilding ? getCheckInLabel(checkInBuilding) : "";
+  const label = getField("label").value.trim()
+    || checkInLabel
+    || formatRoveSubtypesLabel(roveSubtypes)
+    || preset.label
+    || shiftType;
 
   return {
     ...activeContext.shift,
@@ -494,6 +530,8 @@ function readShiftFromForm() {
     shiftType,
     roveSubtypes,
     roveType,
+    checkInBuilding: checkInBuilding?.name ?? "",
+    checkInCode: checkInBuilding?.code ?? "",
     name: shiftType === "Other" ? label : preset.name,
     label,
     notes: getField("notes").value.trim(),
@@ -632,12 +670,17 @@ function prepareShiftForEditing(shift, schedule) {
   }
 
   const roveType = getPrimaryRoveSubtype(roveSubtypes);
+  const checkInBuilding = shiftType === "Check In"
+    ? normalizeCheckInBuilding(shift.checkInBuilding, shift.checkInCode)
+    : null;
 
   return {
     ...shift,
     shiftType,
     roveSubtypes,
     roveType,
+    checkInBuilding: checkInBuilding?.name ?? "",
+    checkInCode: checkInBuilding?.code ?? "",
     name: shift.name || preset.name,
     label: shift.label || formatRoveSubtypesLabel(roveSubtypes) || preset.label,
     notes: shift.notes ?? "",
@@ -662,6 +705,7 @@ function updateConditionalFields() {
   const isPhoneOnly = isStandalonePhoneShift(shiftType);
 
   editorElements.roveTypeRow.hidden = shiftType !== "Roving";
+  editorElements.checkInBuildingRow.hidden = shiftType !== "Check In";
   countsTowardHours.disabled = ["OFF", "On Call", "Backup On Call"].includes(shiftType);
   editorElements.countsTowardHoursRow.hidden = isPhoneOnly;
   editorElements.alsoOnCallRow.hidden = isPhoneOnly;
@@ -743,12 +787,18 @@ function applyRovingDefaultTimes(roveSubtypes) {
   }
 }
 
-function getAutoLabelForShiftType(shiftType, roveSubtypes = []) {
+function getAutoLabelForShiftType(shiftType, roveSubtypes = [], checkInBuilding = "") {
   if (shiftType === "Roving") {
     return formatRoveSubtypesLabel(roveSubtypes.length ? roveSubtypes : getSelectedRoveSubtypes()) || "R-3";
   }
 
   const preset = getShiftTypePreset(shiftType, activeContext.schedule.settings);
+
+  if (shiftType === "Check In") {
+    const building = normalizeCheckInBuilding(checkInBuilding);
+    return building ? getCheckInLabel(building) : preset.label || shiftType;
+  }
+
   return preset.label || shiftType;
 }
 

@@ -14,6 +14,8 @@
  * @property {string} endTime HH:mm, local schedule time. Values before startTime are treated as next-day times.
  * @property {string} name
  * @property {string=} shiftType
+ * @property {string=} checkInBuilding Check-In building name for Check In shifts.
+ * @property {string=} checkInCode Backward-compatible Check-In building code.
  * @property {string[]=} roveSubtypes
  * @property {string=} roveType Backward-compatible first roving subtype.
  * @property {string} label
