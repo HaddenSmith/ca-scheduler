@@ -169,7 +169,7 @@ test("does not prefix or add an event when no exported shift exists for the assi
   assert.doesNotMatch(result.content, /TRANSP:TRANSPARENT/);
 });
 
-test("matches Hadden's published July 25-31 nightly assignments exactly", () => {
+test("matches Hadden's published July 25-31 assignments and explicit shift phone coverage", () => {
   const fileText = readFileSync(new URL("../data/published-schedule.json", import.meta.url), "utf8");
   const parsed = parseScheduleJson(fileText);
   assert.equal(parsed.isValid, true);
@@ -182,7 +182,7 @@ test("matches Hadden's published July 25-31 nightly assignments exactly", () => 
 
   assert.equal(result.eventCount, result.workEventCount);
   assert.equal((result.content.match(/SUMMARY:OC \/ CSA/g) ?? []).length, 2);
-  assert.equal((result.content.match(/SUMMARY:BOC \//g) ?? []).length, 0);
+  assert.equal((result.content.match(/SUMMARY:BOC \/ CO/g) ?? []).length, 1);
   assert.doesNotMatch(result.content, /TRANSP:TRANSPARENT/);
 });
 

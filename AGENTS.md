@@ -51,6 +51,7 @@ Canonical shift types are: `Check In`, `Check Out`, `Checkout/Project`, `Roving`
 
 - Store worker references by stable ID, never by name or column index.
 - Store roving selections in `roveSubtypes`; normalize legacy `roveSubtype` during import.
+- Check-In shifts may store `checkInBuilding` and normalized `checkInCode`; generate `CI-<code>` only for default-generated labels and preserve custom labels.
 - Store Desk Coverage in `deskCoverage`, never as worker shifts.
 - An end time less than or equal to its start time means the shift ends the next calendar day.
 - Preserve custom labels, notes, and colors. Default-generated values may update only through the established helpers.

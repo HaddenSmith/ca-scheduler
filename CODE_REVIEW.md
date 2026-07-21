@@ -1,6 +1,6 @@
 # Conservative Code Review
 
-Review date: 2026-07-13. Scope: static single-user manager trial and preparation for future BYU IT review.
+Review date: 2026-07-21. Scope: static single-user manager trial and preparation for future BYU IT review.
 
 ## Critical
 
@@ -85,7 +85,7 @@ The viewer is not a security boundary. Anyone who can access the GitHub Pages si
 
 - ICS filtering now uses canonical types and always excludes Class, OFF, and Desk Coverage.
 - ICS event UIDs now remain stable when a shift date changes.
-- Optional nightly reminders deduplicate explicit phone assignments and never infer status from CSA labels.
+- ICS nightly phone responsibility is represented by a prefix on the final exported shift; no separate reminder events are generated.
 - Normal and phone overlap warnings now detect intersections split across midnight calendar days.
 - Displayed-week overlap analysis now includes shifts starting the prior day and filters results back to visible dates.
 - Pure business logic now has a lightweight automated regression suite.

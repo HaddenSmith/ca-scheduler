@@ -73,6 +73,14 @@ Daily totals, weekly totals, and hours-by-type are pure calculations. `countsTow
 
 Desk Coverage is a separate record collection with no worker ID. It has its own editor and drag/resize path and participates only in desk-gap coverage analysis. It is deliberately excluded from worker totals, worker overlap checks, and ICS files.
 
+## Check-In Building Assignments
+
+Check-In shifts optionally store `checkInBuilding` and the normalized `checkInCode`. The shift editor
+uses the ordered building list in `checkInUtils.js` and generates labels such as `CI-I` when the
+label is still default-generated. Existing Check-In shifts without building metadata remain valid;
+custom labels are preserved. Rendering and ICS export use the resulting stored label and do not parse
+building assignments from display text.
+
 ## Persistence
 
 `jsonHelpers.js` owns the schedule-file envelope, schema validation, defaults, and legacy normalization. Import validates the complete candidate before state replacement. Export includes the complete multi-week schedule, settings, worker order, nightly assignments, and Desk Coverage.
@@ -83,7 +91,9 @@ Desk Coverage is a separate record collection with no worker ID. It has its own 
 
 `icsExport.js` creates a client-side RFC 5545 snapshot for one worker and one selected week. It includes counted work, Staff Meeting, standalone On Call, and standalone Backup On Call. It always excludes Class, OFF, and Desk Coverage. Notes and shift phone roles are included.
 
-An optional 11:30 PM reminder is derived only from explicit standalone phone shifts, `alsoOnCall`/`alsoBackupOnCall`, or nightly assignments. Reminder keys deduplicate by worker, night, and role. Calendar lines use CRLF, UTF-8 75-octet folding, `America/Denver`, stable UIDs, and escaped TEXT values.
+Nightly on-call assignments are represented in ICS by prefixing the selected worker's final exported
+shift of that date with `OC /` or `BOC /`. No separate reminder events are generated. Calendar lines
+use CRLF, UTF-8 75-octet folding, `America/Denver`, stable UIDs, and escaped TEXT values.
 
 ## Viewer Restrictions
 

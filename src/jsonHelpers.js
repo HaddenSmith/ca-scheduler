@@ -109,7 +109,7 @@ export function validateAndNormalizeScheduleFile(file) {
   if (!Number.isInteger(file.schemaVersion)) {
     errors.push("schemaVersion is required.");
   } else if (file.schemaVersion !== SCHEDULE_FILE_SCHEMA_VERSION) {
-    errors.push(`Unsupported schemaVersion ${file.schemaVersion}. This prototype supports version ${SCHEDULE_FILE_SCHEMA_VERSION}.`);
+    errors.push(`Unsupported schemaVersion ${file.schemaVersion}. This app supports version ${SCHEDULE_FILE_SCHEMA_VERSION}.`);
   }
 
   const data = file.data;

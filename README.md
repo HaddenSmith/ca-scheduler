@@ -179,19 +179,17 @@ To publish a schedule today, export JSON from Settings -> Data / Backup and repl
 
 ## Future Ideas
 
-- Optional shift templates/default times (CSA, RB, RJ, etc.) that auto-fill common shift times while remaining editable.
 - Configurable Sunday church time windows, optional warnings, and scheduling rules for repeated missed church attendance.
 
 ## Future Work
 
-- True authenticated editor/viewer separation and role-based permissions.
-- BYU-hosted backend and SQL database integration.
-- Shared multi-user editing with conflict prevention and audit/version history.
-- Undo/redo, including Ctrl+Z, for edits, moves, copies, repeats, deletes, and Desk Coverage changes.
+- Worker statistics and reporting.
+- Church attendance scheduling assistance, including configurable Sunday windows and warnings.
+- Undo / Redo support.
 - Multi-area scheduling with isolated area data and a housing-area selector, such as Helaman, Heritage, Wyview, and Riviera.
-- A future comparison view for two housing areas side by side without mixing their edits.
-- Area-specific Check In building assignments and codes; for example, selecting May Hall could generate `CI-I`.
+- Authentication and backend integration.
+- Multi-user editing with conflict prevention.
+- Audit history and version history.
 - Live/subscribed calendar feeds in addition to snapshot ICS downloads.
-- Backend/database or Box/server sync where institutionally appropriate.
 
 Backend, Box storage, locking, and multi-user workflow should be added in later milestones after the local JSON workflow is stable.
