@@ -210,7 +210,7 @@ function renderTimeRail(settings, height, layout) {
 
   const onCall = document.createElement("div");
   onCall.className = "on-call-label";
-  onCall.innerHTML = "<span>Night On Call</span><span>Night Backup</span>";
+  onCall.innerHTML = "<span>Overnight</span><span>OC/BOC</span>";
   rail.append(onCall);
 
   return rail;
