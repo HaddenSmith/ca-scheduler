@@ -4,6 +4,7 @@ data/*
 !data/README.md
 !data/default-schedule.json
 !data/published-schedule.json
+!data/ha-review-schedule.json
 *.local.json
 *.lock.json
 

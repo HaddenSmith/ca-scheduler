@@ -55,3 +55,21 @@ test("new roving shifts use subtype default times without changing other types",
     { startTime: "09:00", endTime: "10:00" },
   );
 });
+
+test("OFF shifts default to the visible day but preserve edited times", () => {
+  const schedule = makeSchedule({
+    settings: { ...DEFAULT_SETTINGS, startTime: "07:00", endTime: "02:00" },
+  });
+  const created = createDefaultShift(schedule, { shiftType: "OFF" });
+  const edited = normalizeShift({
+    ...created,
+    startTime: "09:00",
+    endTime: "17:00",
+  }, schedule.settings);
+
+  assert.equal(created.startTime, "07:00");
+  assert.equal(created.endTime, "02:00");
+  assert.equal(edited.startTime, "09:00");
+  assert.equal(edited.endTime, "17:00");
+  assert.equal(edited.countsTowardHours, false);
+});

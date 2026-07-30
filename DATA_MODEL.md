@@ -132,6 +132,10 @@ Dates identify the shift's starting calendar day. If `endTime <= startTime`, the
 ## Static Schedule Files
 
 - `data/published-schedule.json`: canonical source for viewers and static fallback for editors.
+- `data/ha-review-schedule.json`: separate read-only source for Hall Advisor Review Mode.
 - `data/default-schedule.json`: retained compatibility/archive artifact and not part of normal runtime loading.
 
-The retained archive uses the same validated envelope as imports and exports. Viewer mode ignores localStorage; editor mode prefers a valid local autosave, then the published file.
+The retained archive and review file use the same validated envelope as imports and exports. Viewer mode ignores
+localStorage and loads the published file; Hall Advisor Review Mode ignores localStorage and loads the review file;
+editor mode prefers a valid local autosave, then the published file. Both read-only modes fall back to sample data
+if their static source is unavailable.

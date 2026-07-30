@@ -75,6 +75,23 @@ test("finds late-night into early-morning turnaround and obeys disabled setting"
   assert.equal(findLateNightMorningWarnings(shifts, { ...settings, lateNightWarningEnabled: false }).length, 0);
 });
 
+test("finds turnaround warnings across week, month, and year boundaries", () => {
+  const shifts = [
+    makeShift({ id: "friday-night", date: "2026-07-17", startTime: "23:30", endTime: "01:30" }),
+    makeShift({ id: "saturday-morning", date: "2026-07-18", startTime: "07:00", endTime: "10:00" }),
+    makeShift({ id: "new-years-eve", date: "2026-12-31", startTime: "23:30", endTime: "01:00" }),
+    makeShift({ id: "new-years-morning", date: "2027-01-01", startTime: "07:00", endTime: "10:00" }),
+  ];
+
+  const warnings = findLateNightMorningWarnings(shifts, settings);
+
+  assert.equal(warnings.length, 2);
+  assert.deepEqual(
+    warnings.map((warning) => [warning.lateDate, warning.nextDate]),
+    [["2026-07-17", "2026-07-18"], ["2026-12-31", "2027-01-01"]],
+  );
+});
+
 test("desk gap warnings combine worker Desk shifts with Desk Coverage and can be disabled", () => {
   const oneDay = buildWeekDates("2026-07-11").slice(0, 1);
   const focusedSettings = {

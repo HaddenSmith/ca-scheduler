@@ -57,8 +57,8 @@ import {
   findWeeklyMaxHourWarnings,
 } from "./validation.js";
 import { openWorkerManager } from "./workerManager.js";
+import { APP_MODES, getAppMode, getModeScheduleUrl, isReadOnlyMode } from "./appModes.js";
 
-const PUBLISHED_SCHEDULE_URL = "./data/published-schedule.json";
 const STATUS_AUTO_DISMISS_MS = 15000;
 const AUTO_DISMISS_STATUS_TONES = new Set(["success", "info"]);
 
@@ -70,7 +70,8 @@ const state = {
   localSaveError: "",
   localSavedAt: "",
   localStorageAvailable: true,
-  readOnly: isViewerModeFromUrl(),
+  mode: getAppMode(new URLSearchParams(window.location.search).get("mode")),
+  readOnly: isReadOnlyMode(getAppMode(new URLSearchParams(window.location.search).get("mode"))),
   publishedUpdateAvailable: false,
   startupSource: "sample",
   viewMode: "detailed",
@@ -169,7 +170,7 @@ async function handleSettingsAction() {
 }
 
 async function handleCalendarDownload() {
-  if (!state.readOnly) {
+  if (state.mode !== APP_MODES.VIEWER) {
     return;
   }
 
@@ -322,6 +323,10 @@ async function initializeApp() {
 }
 
 async function loadStartupSchedule() {
+  if (state.mode === APP_MODES.HA_REVIEW) {
+    return loadHaReviewStartupSchedule();
+  }
+
   if (state.readOnly) {
     return loadViewerStartupSchedule();
   }
@@ -439,7 +444,7 @@ function createFileStartupResult(result, { source, statusMessage, statusTone }) 
 // Static schedule published for read-only viewers. This is temporary until a
 // backend, Box, or database becomes the shared source of truth.
 async function loadPublishedScheduleFile() {
-  return loadScheduleFile(PUBLISHED_SCHEDULE_URL, "Published schedule file");
+  return loadScheduleFile(getModeScheduleUrl(APP_MODES.VIEWER), "Published schedule file");
 }
 
 async function loadScheduleFile(url, label) {
@@ -974,10 +979,13 @@ async function handleImportFile(event) {
 }
 
 function syncModeControls() {
-  document.body.dataset.appMode = state.readOnly ? "viewer" : "editor";
+  document.body.dataset.appMode = state.mode;
 
   if (viewerModeIndicator) {
     viewerModeIndicator.hidden = !state.readOnly;
+    viewerModeIndicator.textContent = state.mode === APP_MODES.HA_REVIEW
+      ? "Hall Advisor Review Mode"
+      : "Viewer Mode";
   }
 
   if (settingsButton) {
@@ -990,12 +998,41 @@ function syncModeControls() {
   }
 
   if (viewerActionsGroup) {
-    viewerActionsGroup.hidden = !state.readOnly;
+    viewerActionsGroup.hidden = state.mode !== APP_MODES.VIEWER;
   }
 
   if (calendarDownloadButton) {
-    calendarDownloadButton.hidden = !state.readOnly;
-    calendarDownloadButton.disabled = !state.readOnly;
+    calendarDownloadButton.hidden = state.mode !== APP_MODES.VIEWER;
+    calendarDownloadButton.disabled = state.mode !== APP_MODES.VIEWER;
+  }
+}
+
+async function loadHaReviewStartupSchedule() {
+  try {
+    const reviewResult = await loadScheduleFile(
+      getModeScheduleUrl(APP_MODES.HA_REVIEW),
+      "Hall Advisor review schedule file",
+    );
+
+    return createFileStartupResult(reviewResult, {
+      source: "ha-review",
+      statusMessage: "Loaded Hall Advisor review schedule.",
+      statusTone: "success",
+    });
+  } catch {
+    return {
+      hasLocalAutosave: false,
+      hasUnexportedChanges: false,
+      localSaveError: "",
+      localSavedAt: "",
+      localStorageAvailable: true,
+      schedule: structuredClone(sampleSchedule),
+      shouldSaveLocalCopy: false,
+      source: "sample",
+      statusMessage: "Hall Advisor review schedule was unavailable, so sample data was loaded.",
+      statusTone: "info",
+      publishedUpdateAvailable: false,
+    };
   }
 }
 
@@ -1108,12 +1145,6 @@ function isIsoDateValue(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value ?? ""));
 }
 
-function isViewerModeFromUrl() {
-  const mode = new URLSearchParams(window.location.search).get("mode")?.toLowerCase();
-
-  return ["view", "viewer", "readonly", "read-only"].includes(mode);
-}
-
 function renderScheduleWarnings(container, currentSchedule, dailyTotals = {}, weeklyTotals = {}) {
   const weekDates = buildWeekDates(currentSchedule.weekStartDate);
   const visibleDates = new Set(weekDates.map((date) => date.isoDate));
@@ -1124,7 +1155,7 @@ function renderScheduleWarnings(container, currentSchedule, dailyTotals = {}, we
     return visibleDates.has(shift.date) || shift.date === previousDateBeforeWeek;
   });
   const scheduleWarningShifts = currentSchedule.shifts.filter((shift) => {
-    return visibleDates.has(shift.date) || shift.date === nextDateAfterWeek;
+    return visibleDates.has(shift.date) || shift.date === previousDateBeforeWeek || shift.date === nextDateAfterWeek;
   });
   const overlaps = findShiftOverlaps(overlapWarningShifts, currentSchedule.settings)
     .filter((overlap) => visibleDates.has(overlap.date));

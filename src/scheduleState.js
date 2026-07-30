@@ -204,8 +204,8 @@ export function normalizeShift(shift, settings = {}) {
     label,
     notes,
     color: shift.color || preset.color,
-    startTime: isOff ? settings.startTime ?? shift.startTime : shift.startTime,
-    endTime: isOff ? settings.endTime ?? shift.endTime : shift.endTime,
+    startTime: isOff ? (shift.startTime || settings.startTime) : shift.startTime,
+    endTime: isOff ? (shift.endTime || settings.endTime) : shift.endTime,
     countsTowardHours: isOff || isPhoneOnly
       ? false
       : Boolean(shift.countsTowardHours ?? preset.countsTowardHours),

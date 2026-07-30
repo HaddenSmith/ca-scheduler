@@ -46,12 +46,17 @@ This project was designed and directed by Hadden Smith for the BYU Helaman Halls
 - Viewer mode with `index.html?mode=view` or `viewer.html`.
 - Optional warning display in Viewer Mode, controlled from edit-mode Settings.
 - Viewer-only worker calendar download as a one-time `.ics` snapshot.
+- Hall Advisor Review Mode with `index.html?mode=ha-review`, using a separate read-only review schedule.
 
 ## Edit Mode vs Viewer Mode
 
 Edit mode is the default. It allows creating, editing, dragging, resizing, copying, repeating, importing, exporting, changing settings, and managing workers. The main toolbar stays focused on week navigation, view mode, and Settings; worker and data tools live inside Settings.
 
 Viewer mode is read-only. It loads `data/published-schedule.json` and ignores browser localStorage, so workers see the schedule currently published with the site. It keeps schedule display, week navigation, view switching, totals, shift details, Desk Coverage display, and a worker calendar download. Warnings can be shown or hidden in Viewer Mode with the edit-mode setting.
+
+Hall Advisor Review Mode is read-only. It loads `data/ha-review-schedule.json`, ignores localStorage,
+shows shifts, notes, Desk Coverage, and warnings, and keeps week navigation and date jumping. It does not
+show calendar download controls.
 
 Open viewer mode with:
 
@@ -97,6 +102,8 @@ data/published-schedule.json
 
 For the current static workflow, a manager/editor exports schedule JSON and Hadden manually replaces `data/published-schedule.json` in GitHub. Viewer Mode loads this file directly and does not read local autosave. Edit mode tries local autosave first, then this published file, then `src/sampleData.js` if the published file is unavailable.
 
+Hall Advisor Review Mode loads `data/ha-review-schedule.json` directly and falls back to sample data if that file is unavailable. It never reads local autosave.
+
 The older `data/default-schedule.json` file is retained as a tracked compatibility/archive artifact, but the application no longer loads it during normal startup or through Settings.
 
 The static schedule files may contain real worker names or shift details. Do not publish them on GitHub Pages unless your workplace has approved sharing that information.
@@ -134,6 +141,7 @@ This app is static and should work on GitHub Pages as long as the repository pub
 - `viewer.html`
 - `src/...`
 - `data/published-schedule.json`
+- `data/ha-review-schedule.json`
 
 To publish a schedule today, export JSON from Settings -> Data / Backup and replace `data/published-schedule.json` in GitHub. Workers should use `viewer.html` or `index.html?mode=view`. To continue editing on the same computer/browser, local autosave should restore the editor copy. To start fresh, clear local autosave or use Load Published Schedule from Settings -> Data / Backup.
 
@@ -142,6 +150,7 @@ To publish a schedule today, export JSON from Settings -> Data / Backup and repl
 - `index.html`: App shell.
 - `viewer.html`: Lightweight viewer entry point.
 - `data/published-schedule.json`: Static schedule shown in Viewer Mode.
+- `data/ha-review-schedule.json`: Static schedule shown in Hall Advisor Review Mode.
 - `data/README.md`: Notes about the published schedule and retained compatibility data.
 - `src/main.js`: App startup, state wiring, render flow, import/export, and top-level handlers.
 - `src/localStorageAutosave.js`: Single-browser local autosave helpers.

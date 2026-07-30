@@ -6,6 +6,7 @@ Use this checklist before moving toward backend, Box, or server work.
 
 - Load edit mode at `/` and confirm there are no console errors.
 - Load viewer mode at `/index.html?mode=view` and confirm editing controls are hidden.
+- Load Hall Advisor Review Mode at `/index.html?mode=ha-review` and confirm the review schedule loads read-only.
 - Load `viewer.html` and confirm it opens viewer mode.
 - Confirm GitHub Pages/static paths work with relative `index.html`, `viewer.html`, `src/...`, and `data/published-schedule.json`.
 - Switch between Detailed Day View and Compact Week View.
@@ -155,6 +156,8 @@ Use this checklist before moving toward backend, Box, or server work.
 - In Viewer Mode, click a Desk Coverage block and confirm it opens the read-only details presentation.
 - Confirm the Desk Coverage details show assignment status, date, time, coverage label, and notes when present.
 - Confirm no Save, Delete, or editable controls are visible.
+- Confirm Hall Advisor Review Mode shows notes, warnings, shift details, and Desk Coverage details without editing controls.
+- Confirm Hall Advisor Review Mode does not show calendar download controls and ignores local autosave.
 
 ## Warnings
 
@@ -162,6 +165,8 @@ Use this checklist before moving toward backend, Box, or server work.
 - Trigger and verify phone/on-call overlap warnings.
 - Trigger and verify long consecutive work warnings.
 - Trigger and verify late-night into early-morning warnings.
+- In a Saturday-start week, confirm a Friday overnight shift and Saturday morning shift still trigger a turnaround warning.
+- Confirm turnaround warnings also work across December 31 to January 1.
 - Trigger and verify weekly max hours warnings.
 - Trigger and verify daily max hours warnings.
 - Trigger and verify desk coverage gap warnings.

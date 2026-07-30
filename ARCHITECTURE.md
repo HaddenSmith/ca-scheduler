@@ -11,6 +11,7 @@ index.html
 main.js ---- startup data sources
    |          editor: localStorage -> published JSON -> sample data
    |          viewer: published JSON -> sample data
+   |          ha-review: HA review JSON -> sample data
    |
    +--> immutable schedule state
    |       scheduleState.js / repeatShifts.js
@@ -41,6 +42,13 @@ Viewer loading order:
 2. Fall back to normalized in-code sample data.
 
 Viewer mode intentionally does not read or write localStorage.
+
+Hall Advisor Review loading order:
+
+1. Fetch and validate `data/ha-review-schedule.json`.
+2. Fall back to normalized in-code sample data.
+
+Hall Advisor Review Mode is read-only, ignores localStorage, and does not expose ICS download controls.
 
 ## State and Rendering
 
